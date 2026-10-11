@@ -1,0 +1,152 @@
+PROPRIETARY SOFTWARE LICENSE
+nebula-school
+
+Copyright (c) 2026 Ralph Miguel D. Alejandrino.
+All rights reserved.
+
+--------------------------------------------------------------------------------
+1. NOTICE
+--------------------------------------------------------------------------------
+
+This software is proprietary and confidential. It is NOT open-source software.
+No part of it is placed in the public domain, and no rights are granted by
+publication, disclosure, or the act of providing access to this repository.
+
+Copyright in this work subsists automatically under Republic Act No. 8293 (the
+Intellectual Property Code of the Philippines) and applicable international
+treaties. This notice asserts that copyright; it does not create it.
+
+--------------------------------------------------------------------------------
+2. DEFINITIONS
+--------------------------------------------------------------------------------
+
+"Software" means the nebula-school source code, object code, database schemas and
+migrations, configuration, scripts, templates, stylesheets, documentation,
+designs, and all other material contained in this repository, together with all
+modifications, derivative works, and versions thereof.
+
+"Licensor" means Ralph Miguel D. Alejandrino, and his successors and assigns.
+
+"You" means the individual or entity accessing or using the Software.
+
+--------------------------------------------------------------------------------
+3. RESERVATION OF RIGHTS
+--------------------------------------------------------------------------------
+
+All right, title, and interest in and to the Software — including all copyright,
+trade secret, trademark, and other intellectual property rights — are and remain
+the exclusive property of the Licensor.
+
+NO LICENSE, RIGHT, OR PERMISSION OF ANY KIND IS GRANTED BY THIS FILE. Any right
+to use the Software must arise from a separate written agreement signed by the
+Licensor. Absent such an agreement, You have no right to use the Software for
+any purpose.
+
+--------------------------------------------------------------------------------
+4. RESTRICTIONS
+--------------------------------------------------------------------------------
+
+Except as expressly permitted by a separate written agreement with the Licensor,
+You may NOT:
+
+  (a) use, run, execute, or deploy the Software, in whole or in part, for any
+      purpose, whether commercial or non-commercial;
+
+  (b) copy, reproduce, publish, transmit, or otherwise distribute the Software
+      or any portion of it;
+
+  (c) modify, adapt, translate, or create derivative works based on the
+      Software;
+
+  (d) sell, resell, rent, lease, lend, sublicense, assign, or otherwise transfer
+      the Software or any rights in it;
+
+  (e) host, operate, or offer the Software as a hosted or managed service,
+      whether or not for a fee;
+
+  (f) reverse engineer, decompile, or disassemble the Software, or attempt to
+      derive its source code, structure, or underlying ideas, except to the
+      limited extent such an act cannot lawfully be prohibited;
+
+  (g) remove, obscure, or alter this notice or any other proprietary,
+      copyright, or attribution notice contained in the Software; or
+
+  (h) use the name "nebula-school", or any confusingly similar mark, logo, or trade
+      dress, for any purpose.
+
+--------------------------------------------------------------------------------
+5. AUTHORIZED DEPLOYMENTS
+--------------------------------------------------------------------------------
+
+Where the Licensor has installed or supplied the Software to a customer, that
+customer's rights are defined solely and exclusively by the written agreement
+covering that engagement. Nothing in this file grants, enlarges, or implies any
+right beyond that agreement. Possession of a deployed copy is not ownership of
+the Software and conveys no right to copy, modify, redistribute, or extract it.
+
+--------------------------------------------------------------------------------
+6. CONFIDENTIALITY
+--------------------------------------------------------------------------------
+
+The Software constitutes the confidential information and trade secrets of the
+Licensor. If You are given access to it, You shall keep it in strict confidence,
+shall not disclose it to any third party, and shall use at least the same degree
+of care to protect it as You use for Your own confidential information — and in
+no case less than a reasonable degree of care.
+
+--------------------------------------------------------------------------------
+7. THIRD-PARTY COMPONENTS
+--------------------------------------------------------------------------------
+
+The Software incorporates or depends upon third-party components (including,
+without limitation, the MCP Python SDK and the Google API client libraries listed
+in requirements.txt). Those components remain the
+property of their respective owners and are governed by their own licenses. This
+license applies only to the Licensor's own original work and asserts no claim
+over any third-party component.
+
+--------------------------------------------------------------------------------
+8. NO WARRANTY
+--------------------------------------------------------------------------------
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. This section is subject
+to any express warranty given in a signed agreement with the Licensor, and does
+not limit any right that cannot lawfully be excluded under Philippine law.
+
+--------------------------------------------------------------------------------
+9. LIMITATION OF LIABILITY
+--------------------------------------------------------------------------------
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE LICENSOR SHALL NOT BE
+LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR EXEMPLARY
+DAMAGES, OR FOR ANY LOSS OF PROFITS, REVENUE, DATA, OR BUSINESS, ARISING OUT OF
+OR IN CONNECTION WITH THE SOFTWARE OR ITS USE, WHETHER IN CONTRACT, TORT, OR
+OTHERWISE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+--------------------------------------------------------------------------------
+10. TERMINATION
+--------------------------------------------------------------------------------
+
+Any right to use the Software terminates automatically and immediately upon any
+breach of this license or of the applicable written agreement. Upon termination
+You shall cease all use of the Software and destroy or return all copies in Your
+possession or control. Sections 3, 4, 6, 8, 9, and 11 survive termination.
+
+--------------------------------------------------------------------------------
+11. GOVERNING LAW
+--------------------------------------------------------------------------------
+
+This license is governed by the laws of the Republic of the Philippines, without
+regard to its conflict-of-laws rules. The courts of the Philippines shall have
+exclusive jurisdiction over any dispute arising from it.
+
+--------------------------------------------------------------------------------
+12. CONTACT
+--------------------------------------------------------------------------------
+
+Licensing inquiries:
+
+  Ralph Miguel D. Alejandrino
+  ralphmiguelalejandrino@gmail.com

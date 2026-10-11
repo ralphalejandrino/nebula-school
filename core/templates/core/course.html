@@ -1,0 +1,40 @@
+{% extends "core/base.html" %}{% load nebula %}
+{% block title %}{{ code }} · Nebula{% endblock %}
+{% block content %}
+<p><a href="{% url 'courses' %}" class="back">‹ Courses</a></p>
+<h1 class="page"><span class="code">{{ code }}</span> {{ name }}</h1>
+<div class="split">
+<section class="col">
+  <h2 class="sec">Work</h2>
+  <p class="muted small">Tap {% include "core/_sparkle.html" %} on a task: everything about it is copied and Gemini opens — paste it there.</p>
+  <div class="card list">
+    {% for i, prompt in items %}<div class="row{% if i.submitted %} done{% endif %}"><span class="pri">{% if i.submitted %}{{ "done"|stico }}{% elif i.due and i.due < now %}{{ "overdue"|stico }}{% else %}{{ "due"|stico }}{% endif %}</span><span class="t">{{ i.title }}{% if i.pts %} <span class="muted">({{ i.pts|floatformat:0 }} pts)</span>{% endif %}<br><span class="sub">{{ i.due|dayname_dt }}</span></span>{% if not i.submitted %}<button class="btn small gem" data-copy="{{ prompt }}" data-open="https://gemini.google.com/app" title="Open this task in Gemini" aria-label="Open this task in Gemini">{% include "core/_sparkle.html" %}</button>{% endif %}</div>
+    {% empty %}{% if not props %}<p class="muted">Nothing in the last 2 weeks or ahead.</p>{% endif %}{% endfor %}
+    {% for p, prompt in props %}<div class="row"><span class="pri">{% include "core/_sparkle.html" with sm=1 %}</span><span class="t">{{ p.get_kind_display }} {{ p.title }}<br><span class="sub">{{ p.date|default:"no date" }} · {{ p.get_state_display }}</span></span>{% if p.kind != 'notice' %}<button class="btn small gem" data-copy="{{ prompt }}" data-open="https://gemini.google.com/app" title="Open this task in Gemini" aria-label="Open this task in Gemini">{% include "core/_sparkle.html" %}</button>{% endif %}</div>{% endfor %}
+  </div>
+
+  <h2 class="sec">Revise with Gemini</h2>
+  <div class="card">
+    <p class="small">For exam prep across the whole course. Build the pack (it lands on Drive), then <b>Study this</b> — runs on your <b>Gemini AI Plus</b> plan, no API quota used.</p>
+    <div class="actions">
+      <form method="post" action="{% url 'build_pack' code %}">{% csrf_token %}<button class="btn">{% icon "pdf" %} Build study pack</button></form>
+      <button class="btn primary" data-copy="{{ prompt }}" data-open="https://gemini.google.com/app">{% include "core/_sparkle.html" with white=1 %} Study this in Gemini</button>
+    </div>
+    {% if pack %}<p class="small">Pack {% if pack.copied %}{{ "done"|stico }} on Drive{% if pack.drive_verified %} (md5 verified by Google){% elif pack.drive_verified is False %} (Drive still syncing){% endif %}{% else %}{{ "overdue"|stico }} {{ pack.error }}{% endif %} · built {{ pack.built }}</p>{% endif %}
+  </div>
+
+  <h2 class="sec">Materials</h2>
+  <div class="card list">
+    {% for t, u in materials %}<a class="row" href="{{ u }}" target="_blank" rel="noopener"><span class="ic">{% icon "attach" %}</span><span class="t">{{ t }}</span></a>
+    {% empty %}<p class="muted">No Drive links in <code>courses/{{ code }}/{{ code }}.md</code> yet.</p>{% endfor %}
+  </div>
+</section>
+<section class="col side">
+  <h2 class="sec">Recent messages</h2>
+  <div class="card list">
+    {% for m in msgs %}<a class="row" href="{% url 'message' m.pk %}"><span class="ic">{{ m.source|srcico }}</span><span class="t">{{ m.headline|truncatechars:80 }}</span><span class="why">{{ m.when|when }}</span></a>
+    {% empty %}<p class="muted">None yet.</p>{% endfor %}
+  </div>
+</section>
+</div>
+{% endblock %}

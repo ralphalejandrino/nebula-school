@@ -1,0 +1,7 @@
+Django>=5.2,<6
+whitenoise>=6.12
+gunicorn>=23
+google-api-python-client>=2.200
+google-auth-oauthlib>=1.2
+markdown>=3.5         # tools/md2pdf.py (study packs)
+playwright>=1.45      # tools/md2pdf.py renders through Chromium

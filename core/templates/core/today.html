@@ -1,0 +1,70 @@
+{% extends "core/base.html" %}{% load nebula %}
+{% block title %}Today · Nebula{% endblock %}
+{% block content %}
+<div class="split">
+<section class="col">
+  <h1 class="page">{{ now|date:"l, j F" }}</h1>
+  {% if run and not run.complete %}<div class="flash error">{{ "overdue"|stico }} The last sweep was INCOMPLETE — see Sweep at the bottom. Gaps are UNKNOWN, not "nothing due".</div>{% endif %}
+
+  <h2 class="sec">Today</h2>
+  <div class="card list">
+    {% for t in tasks %}<div class="row"><span class="id">T{{ forloop.counter }}</span><span class="pri">{{ t.pri|stico }}</span><span class="t">{{ t.text }}<br><span class="sub">{% if t.tag == 'overdue' %}overdue · {{ t.due|dayname_dt }}{% else %}{{ t.due|ampm }}{% endif %}</span></span><button class="btn small gem" data-copy="{{ t.prompt }}" data-open="https://gemini.google.com/app" title="Open this task in Gemini" aria-label="Open this task in Gemini">{% include "core/_sparkle.html" %}</button></div>
+    {% empty %}<p class="muted">— nothing due today —</p>{% endfor %}
+    {% if tomorrow %}<div class="tmr"><p class="muted small"><b>Tomorrow</b></p>{% for t in tomorrow %}<p class="small">{{ t.due|ampm }} · {{ t.text|truncatechars:70 }}</p>{% endfor %}</div>{% endif %}
+  </div>
+
+  {% if proposals %}
+  <h2 class="sec">To approve <span class="badge">{{ proposals|length }}</span></h2>
+  <p class="muted small hint-phone">Swipe right to add · left to reject</p>
+  {% for p in proposals %}{% include "core/_proposal.html" %}{% endfor %}
+  {% endif %}
+
+  <h2 class="sec">Notices</h2>
+  <div class="card list">
+    {% for g in notices %}<a class="row" href="{% url 'message' g.m.pk %}"><span class="id">N{{ forloop.counter }}</span><span class="t">{% if g.course %}<b>{{ g.course }}</b> {% endif %}{{ g.m.judge_tag }}<br><span class="sub">{% for s in g.icons %}{{ s|srcico }}{% endfor %} {{ g.m.when|dayname_dt }}{% if g.n > 1 %} · on {{ g.n }} channels{% endif %}</span></span></a>
+    {% empty %}<p class="muted">— nothing new that matters in the last 3 days —</p>{% endfor %}
+  </div>
+
+  <h2 class="sec">Questions for you</h2>
+  <div class="card list">
+    {% for c in questions %}
+    <form method="post" action="{% url 'answer' c.pk %}" class="qa">{% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <label><span class="id">C{{ forloop.counter }}</span> {{ c.question }}</label>
+      <div class="inline"><input name="answer" placeholder="Your answer"><button class="btn">Save</button></div>
+    </form>
+    {% empty %}<p class="muted">— none —</p>{% endfor %}
+  </div>
+
+  <h2 class="sec">Emails</h2>
+  <div class="card list">
+    {% for m in mails %}<a class="row" href="{% url 'message' m.pk %}"><span class="id">E{{ forloop.counter }}</span><span class="t"><b>{{ m.author|truncatechars:40 }}</b><br><span class="sub">{{ m.judge_tag|default:m.title|truncatechars:90 }}</span></span></a>
+    {% empty %}<p class="muted">— none actionable —</p>{% endfor %}
+    <p class="muted small">{{ mail_others }} other school message{{ mail_others|pluralize }} in the last 3 days (receipts, digests) · Personal inbox: {{ personal_unread }} unread · {% icon "lock" %} never sent to AI</p>
+  </div>
+
+  <h2 class="sec">Sweep</h2>
+  <div class="card">
+    {% if run %}<p class="small"><b>{% if run.complete %}{{ "done"|stico }} Complete{% else %}{{ "overdue"|stico }} INCOMPLETE{% endif %}</b> · {{ run.finished|dayname_dt }}</p>{% endif %}
+    <details{% if not run or not run.complete %} open{% endif %}><summary class="small">Every source{% if run %} ({{ board|length }}){% endif %}</summary>
+    <table class="board">
+      {% for r in board %}<tr><td class="g">{{ r.glyph|stico }}</td><td class="n">{{ r.name }}</td><td class="d">{{ r.detail }}</td></tr>{% endfor %}
+    </table>
+    </details>
+    <details class="small"><summary>Gemini quota today (Pacific day)</summary>
+      <ul class="plain">{% for q in quota %}<li>{{ q.model }} — {{ q.used }}/{{ q.limit }}{% if q.exhausted %} {{ "overdue"|stico }} exhausted{% endif %}</li>{% endfor %}</ul>
+    </details>
+    {% if set_aside %}<details class="small"><summary>Set aside — keyword hits the judge didn't flag ({{ set_aside|length }})</summary>
+      <ul class="plain">{% for m in set_aside %}<li><a href="{% url 'message' m.pk %}">{{ m.source|srcico }} {{ m.headline|truncatechars:80 }}</a> <span class="muted">{{ m.when|when }}</span></li>{% endfor %}</ul>
+    </details>{% endif %}
+  </div>
+</section>
+
+<section class="col side pc-only">
+  <h2 class="sec">Next 14 days</h2>
+  {% if clashes %}<div class="card clash"><b>{{ "warn"|stico }} Clashes</b>{% for a, b in clashes %}<p class="small">{{ a.start|dayname }} {{ a.start|ampm }}: {{ a.summary|calsum }} ↔ {{ b.summary|calsum }}</p>{% endfor %}</div>{% endif %}
+  {% include "core/_agenda.html" with days=agenda %}
+</section>
+</div>
+<p class="credit phone-only"><a href="https://icons8.com" target="_blank" rel="noopener">Icons by Icons8</a></p>
+{% endblock %}

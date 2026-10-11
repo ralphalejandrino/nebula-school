@@ -1,0 +1,8 @@
+[Unit]
+Description=Nebula sweep — LMS load + calendar apply + imports + free-Gemini judge
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/nebula
+ExecStart=%h/nebula/.venv/bin/python manage.py sweep --trigger timer
+TimeoutStartSec=1800

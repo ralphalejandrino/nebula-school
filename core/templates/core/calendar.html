@@ -1,0 +1,8 @@
+{% extends "core/base.html" %}{% load nebula %}
+{% block title %}Calendar · Nebula{% endblock %}
+{% block content %}
+<h1 class="page">Next 14 days</h1>
+<p class="muted small">From Google Calendar at the last sweep. School and work together — read only here; Calendar itself still sends the alerts.</p>
+{% if clashes %}<div class="card clash"><b>{{ "warn"|stico }} Clashes</b>{% for a, b in clashes %}<p class="small">{{ a.start|dayname }} {{ a.start|ampm }}–{{ a.end|ampm }}: <b>{{ a.summary|calsum }}</b> overlaps <b>{{ b.summary|calsum }}</b></p>{% endfor %}</div>{% endif %}
+<div class="calgrid">{% include "core/_agenda.html" with days=days %}</div>
+{% endblock %}

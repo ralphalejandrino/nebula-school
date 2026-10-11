@@ -1,0 +1,16 @@
+{% extends "core/base.html" %}{% load nebula %}
+{% block title %}Capture · Nebula{% endblock %}
+{% block content %}
+<h1 class="page">Capture</h1>
+<form method="post" class="card form">{% csrf_token %}
+  <label>What was said? <span class="muted small">(in class, by a groupmate, on a slide…)</span>
+    <textarea name="text" rows="4" placeholder="Quiz next meeting on binary to decimal, bring a calculator" autofocus required></textarea></label>
+  <label>Course <select name="course"><option value="">—</option>{% for c in courses %}<option>{{ c }}</option>{% endfor %}</select></label>
+  <button class="btn primary">Save — Gemini turns it into a proposal</button>
+</form>
+<h2 class="sec">Recent notes</h2>
+<div class="card list">
+  {% for c in caps %}<div class="row"><span class="ic">{% icon "pencil" %}</span><span class="t">{% if c.course %}<b>{{ c.course }}</b> {% endif %}{{ c.text }}</span><span class="why">{{ c.created|when }}{% if c.judged_at %} · judged{% else %} · waiting{% endif %}</span></div>
+  {% empty %}<p class="muted">No notes yet.</p>{% endfor %}
+</div>
+{% endblock %}

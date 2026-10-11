@@ -1,0 +1,15 @@
+{% extends "core/base.html" %}{% load nebula %}
+{% block title %}Courses · Nebula{% endblock %}
+{% block content %}
+<h1 class="page">Courses</h1>
+<div class="grid">
+  {% for c in cards %}
+  <a class="card course" href="{% url 'course' c.code %}">
+    <span class="code">{{ c.code }}</span>
+    <h3>{{ c.name }}</h3>
+    {% if c.next %}<p class="small">Next: <b>{{ c.next.title|truncatechars:60 }}</b><br>{{ c.next.due|dayname_dt }}</p>{% else %}<p class="muted small">Nothing dated ahead</p>{% endif %}
+    <p class="muted small">{{ c.open }} open · {{ c.recent }} message{{ c.recent|pluralize }} this week</p>
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}

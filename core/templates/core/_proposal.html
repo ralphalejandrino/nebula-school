@@ -1,0 +1,16 @@
+{% load nebula %}<article class="card proposal swipe" data-approve="{% url 'proposal_decide' p.pk 'approve' %}" data-reject="{% url 'proposal_decide' p.pk 'reject' %}">
+  <div class="prow">
+    <span class="chip k-{{ p.kind }}">{{ p.get_kind_display }}</span>
+    {% if p.course %}<span class="code">{{ p.course }}</span>{% endif %}
+    <span class="lbl">{{ p.label|labelst|stico }} {{ p.get_label_display }}</span>
+    {% if not p.verified %}<span class="warn" title="{{ p.verify_note }}">{{ "warn"|stico }} unverified</span>{% endif %}
+  </div>
+  <h3>{{ p.title }}</h3>
+  <p class="when">{% if p.date %}{{ p.date|dayname }}{% if p.time %} · {{ p.time|time:"g:i A" }}{% if p.end_time %}–{{ p.end_time|time:"g:i A" }}{% endif %}{% if "class slot" in p.verify_note %} (your class){% endif %}{% endif %}{% else %}No date{% endif %}{% if p.room %} · {{ p.room }}{% endif %}</p>
+  <blockquote>“{{ p.evidence }}”</blockquote>
+  <p class="muted small">{% if p.message %}{{ p.message.source|srcico }} From the <b>{{ p.message.source_long }}</b>{% if p.message.author %} — {{ p.message.author }}{% endif %} · {{ p.message.when|dayname_dt }} · <a href="{% url 'message' p.message.pk %}">read it</a>{% elif p.capture %}{% icon "pencil" %} your note{% endif %}{% if not p.verified %} · {{ p.verify_note }}{% endif %}</p>
+  <div class="actions">
+    <form method="post" action="{% url 'proposal_decide' p.pk 'approve' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn primary">{% if p.date and p.kind != 'notice' %}Add to calendar{% else %}Noted{% endif %}</button></form>
+    <form method="post" action="{% url 'proposal_decide' p.pk 'reject' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn">Reject</button></form>
+  </div>
+</article>

@@ -1,0 +1,15 @@
+{% extends "core/base.html" %}
+{% block title %}Sign in · Nebula{% endblock %}
+{% block content %}
+<div class="login">
+  <h1 class="brandbig">Nebula</h1>
+  <p class="muted">Your school, in one place.</p>
+  <form method="post" class="card form">{% csrf_token %}
+    {% if form.errors %}<p class="flash error">Wrong username or password.</p>{% endif %}
+    <label>Username<input name="username" autocomplete="username" autocapitalize="none" value="{{ login_username }}"></label>
+    <label>Password<input name="password" type="password" autocomplete="current-password" autofocus></label>
+    <input type="hidden" name="next" value="{{ next }}">
+    <button class="btn primary wide">Sign in</button>
+  </form>
+</div>
+{% endblock %}

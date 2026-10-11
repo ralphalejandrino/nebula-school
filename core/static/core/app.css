@@ -1,0 +1,231 @@
+/* Nebula — token scale inherited from TarsierPOS shared-styles.css (locked 2026-05-17):
+   same --color-* semantics, --space-*, --text-*, --radius-*, --shadow-*. Dark mode added
+   for the phone. Google Calendar colour ids are mirrored so events read the same here. */
+:root {
+  --color-primary: #1d4ed8; --color-primary-hover: #1e40af; --color-primary-light: #dbeafe;
+  --color-success: #16a34a; --color-danger: #dc2626; --color-warning: #f59e0b;
+  --color-surface: #ffffff; --color-surface-alt: #f9fafb; --color-ink: #1f2937;
+  --color-ink-muted: #6b7280; --color-border: #e5e7eb; --color-page: #f3f4f6;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px;
+  --text-xs: .75rem; --text-sm: .875rem; --text-base: 1rem; --text-lg: 1.25rem; --text-xl: 1.5rem;
+  --radius-sm: .5rem; --radius-md: .75rem; --radius-lg: 1rem;
+  --shadow-subtle: 0 1px 2px rgba(0,0,0,.05);
+  --shadow-raised: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -2px rgba(0,0,0,.1);
+  --cal-flamingo: #e67c73; --cal-peacock: #039be5; --cal-sage: #33b679; --cal-graphite: #616161;
+  --cal-tomato: #d50000; --cal-lavender: #7986cb; --cal-grape: #8e24aa; --cal-default: #4285f4;
+  --tab-h: 64px;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-primary: #3b82f6; --color-primary-hover: #60a5fa; --color-primary-light: #172554;
+    --color-success: #22c55e; --color-danger: #f87171; --color-warning: #fbbf24;
+    --color-surface: #111827; --color-surface-alt: #1f2937; --color-ink: #e5e7eb;
+    --color-ink-muted: #9ca3af; --color-border: #2b3544; --color-page: #0b1020;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--color-page); color: var(--color-ink); }
+a { color: var(--color-primary); text-decoration: none; }
+.muted { color: var(--color-ink-muted); } .small { font-size: var(--text-sm); } .center { text-align: center; }
+.page { font-size: var(--text-xl); margin: var(--space-4) 0 var(--space-3); }
+.sec { font-size: var(--text-xs); letter-spacing: .08em; text-transform: uppercase; color: var(--color-ink-muted);
+  margin: var(--space-5) 0 var(--space-2); display: flex; gap: var(--space-2); align-items: center; }
+.card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4); box-shadow: var(--shadow-subtle); margin-bottom: var(--space-3); }
+.card.list { padding: var(--space-1) 0; }
+.row { display: flex; flex-wrap: wrap; gap: 2px var(--space-2); align-items: baseline; padding: var(--space-2) var(--space-4);
+  color: inherit; border-bottom: 1px solid var(--color-border); }
+.row:last-child { border-bottom: 0; }
+.row .t { flex: 1 1 55%; min-width: 0; overflow-wrap: anywhere; }
+.row .why { color: var(--color-ink-muted); font-size: var(--text-xs); flex: 0 1 auto; max-width: 100%; text-align: right; margin-left: auto; }
+.row .id { font: 600 var(--text-xs)/1 ui-monospace, monospace; color: var(--color-ink-muted); min-width: 2.2em; }
+.row.unread .t b { color: var(--color-primary); }
+.row.sel { background: var(--color-primary-light); }
+.row.done .t { opacity: .55; }            /* dim the text, never the green mark */
+.tmr { padding: var(--space-2) var(--space-4); border-top: 1px solid var(--color-border); }
+.tmr p { margin: 2px 0; }
+.row .sub { color: var(--color-ink-muted); font-size: var(--text-sm); }
+.card.list > p { padding: var(--space-2) var(--space-4); margin: 0; }
+.code { font: 600 var(--text-xs)/1 ui-monospace, monospace; background: var(--color-surface-alt);
+  border: 1px solid var(--color-border); border-radius: 4px; padding: 2px 5px; }
+.badge { background: var(--color-danger); color: #fff; border-radius: 999px; font-size: 11px; padding: 1px 7px; }
+.btn { font: inherit; font-size: var(--text-sm); border: 1px solid var(--color-border); background: var(--color-surface-alt);
+  color: var(--color-ink); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); cursor: pointer;
+  min-height: 40px; }
+.btn.primary { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.btn.small { min-height: 32px; padding: 4px 10px; }
+.btn.gem { min-width: 40px; min-height: 36px; align-self: center; flex: none; display: inline-flex;
+  align-items: center; justify-content: center; padding: 4px 8px; }
+.spark { width: 22px; height: 22px; vertical-align: -5px; }
+.brand .spark { width: 26px; height: 26px; vertical-align: -5px; }
+.btn .spark + *, .btn .spark { margin-right: 2px; }
+.toast { position: fixed; left: 50%; bottom: calc(var(--tab-h) + env(safe-area-inset-bottom) + 12px);
+  transform: translateX(-50%); background: var(--color-ink); color: var(--color-surface); padding: 8px 14px;
+  border-radius: 999px; font-size: var(--text-sm); z-index: 50; box-shadow: var(--shadow-raised); }
+@media (min-width: 1024px) { .toast { bottom: 24px; } }
+.btn.wide { width: 100%; }
+.btn:disabled { opacity: .55; }
+.linkbtn { background: none; border: 0; color: var(--color-ink-muted); cursor: pointer; padding: 0; }
+.actions { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-2); }
+.actions form { margin: 0; }
+.flashes { margin: var(--space-3) 0; }
+.flash { padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); margin-bottom: var(--space-2);
+  background: var(--color-primary-light); }
+.flash.error { background: #fee2e2; color: #991b1b; } .flash.success { background: #dcfce7; color: #14532d; }
+@media (prefers-color-scheme: dark) { .flash.error { background: #450a0a; color: #fecaca; }
+  .flash.success { background: #052e16; color: #bbf7d0; } }
+table.board { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+table.board td { padding: 3px 4px; vertical-align: top; border-bottom: 1px solid var(--color-border); }
+table.board tr:last-child td { border: 0; }
+table.board .g { width: 1.6em; } table.board .n { white-space: nowrap; font-weight: 600; padding-right: var(--space-3); }
+table.board .d { color: var(--color-ink-muted); overflow-wrap: anywhere; }
+ul.plain { list-style: none; padding: 0; margin: var(--space-2) 0 0; }
+/* proposals */
+.proposal h3 { margin: var(--space-2) 0 2px; font-size: var(--text-base); }
+.proposal .when { margin: 0; font-weight: 600; }
+.proposal blockquote { margin: var(--space-2) 0; padding-left: var(--space-3); border-left: 3px solid var(--color-border);
+  color: var(--color-ink-muted); font-size: var(--text-sm); }
+.prow { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; font-size: var(--text-xs); }
+.chip { border-radius: 999px; padding: 2px 8px; color: #fff; background: var(--cal-flamingo); font-weight: 600; }
+.chip.k-event { background: var(--cal-peacock); } .chip.k-notice { background: var(--cal-graphite); }
+.warn { color: var(--color-warning); font-weight: 600; } .lbl { color: var(--color-ink-muted); }
+.swipe { touch-action: pan-y; transition: transform .15s ease; position: relative; }
+.swipe.go-right { background: linear-gradient(90deg, #dcfce7, var(--color-surface)); }
+.swipe.go-left { background: linear-gradient(270deg, #fee2e2, var(--color-surface)); }
+.tag { background: var(--color-primary-light); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); }
+.msgfull .body { white-space: normal; overflow-wrap: anywhere; font-size: var(--text-sm); margin: var(--space-3) 0; }
+.msgfull h2 { margin: 4px 0; font-size: var(--text-lg); }
+.qa { padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--color-border); }
+.qa:last-child { border: 0; }
+.qa label { display: block; margin-bottom: var(--space-2); }
+.inline { display: flex; gap: var(--space-2); }
+.inline input { flex: 1; }
+input, textarea, select { font: inherit; width: 100%; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border); background: var(--color-surface-alt); color: var(--color-ink); }
+.form label { display: block; margin-bottom: var(--space-3); font-size: var(--text-sm); }
+.form label input, .form label textarea, .form label select { margin-top: 4px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: var(--space-2); }
+.fchip { border: 1px solid var(--color-border); border-radius: 999px; padding: 4px 10px; font-size: var(--text-sm);
+  color: var(--color-ink); background: var(--color-surface); white-space: nowrap; }
+.fchip.sm { font-size: var(--text-xs); padding: 3px 8px; }
+.fchip.on { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+/* agenda */
+.day { margin-bottom: var(--space-3); }
+.dayh { font-size: var(--text-sm); margin: var(--space-2) 0 4px; }
+.ev { display: flex; gap: var(--space-2); padding: 6px 10px; border-radius: var(--radius-sm); margin-bottom: 4px;
+  background: var(--color-surface); border-left: 4px solid var(--cal-default); color: var(--color-ink); font-size: var(--text-sm); }
+.ev .tm { min-width: 5.2em; color: var(--color-ink-muted); font-variant-numeric: tabular-nums; }
+.ev.cls { opacity: .7; }
+.c-flamingo { border-left-color: var(--cal-flamingo); } .c-peacock { border-left-color: var(--cal-peacock); }
+.c-sage { border-left-color: var(--cal-sage); } .c-graphite { border-left-color: var(--cal-graphite); }
+.c-tomato { border-left-color: var(--cal-tomato); } .c-lavender { border-left-color: var(--cal-lavender); }
+.c-grape { border-left-color: var(--cal-grape); }
+.clash { border-color: var(--color-warning); }
+.grid { display: grid; gap: var(--space-3); grid-template-columns: 1fr; }
+.course { color: inherit; display: block; } .course h3 { margin: 6px 0; font-size: var(--text-base); }
+.back { font-size: var(--text-sm); }
+.login { max-width: 380px; margin: 12vh auto 0; text-align: center; }
+.login .form { text-align: left; } .brandbig { font-size: 2.4rem; margin: 0; letter-spacing: -.02em; }
+/* ---- layout: phone first ---- */
+.sidebar { display: none; }
+.main { padding: 0 16px calc(var(--tab-h) + env(safe-area-inset-bottom) + 16px); max-width: 760px; margin: 0 auto; }
+.topbar { position: sticky; top: 0; z-index: 10; display: flex; justify-content: space-between; align-items: center;
+  padding: calc(env(safe-area-inset-top) + 8px) 0 8px; background: var(--color-page); }
+.topbar .brand { font-weight: 800; letter-spacing: -.01em; font-size: var(--text-lg); }
+.topbar form { margin: 0; }
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; height: calc(var(--tab-h) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom); background: var(--color-surface); border-top: 1px solid var(--color-border); }
+.tabbar a { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 11px;
+  color: var(--color-ink-muted); position: relative; }
+.tabbar a .ico { width: 24px; height: 24px; margin-bottom: 3px; }
+.tabbar a.on { color: var(--color-primary); font-weight: 600; }
+.tabbar .dot { position: absolute; top: 10px; right: 28%; width: 8px; height: 8px; border-radius: 50%; background: var(--color-danger); }
+.split .side { margin-top: var(--space-4); }
+.pc-only { display: none; }                      /* phone: the Calendar tab has the agenda */
+.split.two .pane { display: none; }
+.hint-phone { margin-top: -4px; }
+@media (min-width: 640px) { .grid { grid-template-columns: 1fr 1fr; } }
+/* ---- PC: sidebar + two panes ---- */
+@media (min-width: 1024px) {
+  body { display: flex; }
+  .sidebar { display: flex; flex-direction: column; gap: var(--space-2); width: 220px; flex: none; height: 100vh;
+    position: sticky; top: 0; padding: var(--space-5) var(--space-4); border-right: 1px solid var(--color-border);
+    background: var(--color-surface); }
+  .sidebar .brand { font-weight: 800; font-size: var(--text-xl); margin-bottom: var(--space-4); letter-spacing: -.02em; }
+  .sidebar nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+  .sidebar nav a { padding: 8px 10px; border-radius: var(--radius-sm); color: var(--color-ink); }
+  .sidebar nav a.on { background: var(--color-primary-light); color: var(--color-primary); font-weight: 600; }
+  .sidebar .sweepform { margin: 0; }
+  .topbar, .tabbar, .hint-phone { display: none; }
+  .main { flex: 1; max-width: none; padding: 0 var(--space-6) var(--space-6); }
+  .split { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: var(--space-6); }
+  .split .side { margin-top: 0; padding-top: 60px; }
+  .pc-only { display: block; }
+  .split.two .pane { display: block; position: sticky; top: var(--space-4); align-self: start; max-height: calc(100vh - 32px);
+    overflow: auto; padding-top: 60px; }
+  .grid { grid-template-columns: repeat(3, 1fr); }
+  .calgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 var(--space-6); }
+}
+
+/* Icons8 "Material Outlined" PNGs (free licence: credited in the sidebar / footer), drawn as
+   masks so they take the text colour — blue when active, grey otherwise, light in dark mode. */
+.ico { display: inline-block; width: 20px; height: 20px; flex: none; vertical-align: -4px;
+  background-color: currentColor; -webkit-mask: var(--ico) center / contain no-repeat;
+  mask: var(--ico) center / contain no-repeat; }
+.ico-today { --ico: url("icons/today.png"); }
+.ico-inbox { --ico: url("icons/inbox.png"); }
+.ico-calendar { --ico: url("icons/calendar.png"); }
+.ico-courses { --ico: url("icons/courses.png"); }
+.ico-capture { --ico: url("icons/capture.png"); }
+.ico-sweep { --ico: url("icons/sweep.png"); width: 16px; height: 16px; vertical-align: -3px; }
+.spin { animation: spin 1.2s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+.sidebar nav a { display: flex; align-items: center; gap: 10px; }
+.credit { font-size: 11px; color: var(--color-ink-muted); margin: var(--space-4) 0 0; text-align: center; }
+.credit a { color: var(--color-ink-muted); }
+@media (min-width: 1024px) { .phone-only { display: none; } .sidebar .credit { text-align: left; } }
+
+/* Sources and marks — same Icons8 Material Outlined set. */
+.ico-src-school_mail { --ico: url("icons/src-school_mail.png"); }
+.ico-src-personal_mail { --ico: url("icons/src-personal_mail.png"); }
+.ico-src-bb_announce { --ico: url("icons/src-bb_announce.png"); }
+.ico-src-classroom { --ico: url("icons/src-classroom.png"); }
+.ico-src-chat_space { --ico: url("icons/src-chat_space.png"); }
+.ico-src-chat_dm { --ico: url("icons/src-chat_dm.png"); }
+.ico-src-fb { --ico: url("icons/src-fb.png"); }
+.ico-lock { --ico: url("icons/lock.png"); }
+.ico-key { --ico: url("icons/key.png"); }
+.ico-pencil { --ico: url("icons/pencil.png"); }
+.ico-attach { --ico: url("icons/attach.png"); }
+.ico-pdf { --ico: url("icons/pdf.png"); }
+.ico-st-done { --ico: url("icons/st-done.png"); }
+.ico-st-overdue { --ico: url("icons/st-overdue.png"); }
+.ico-st-due { --ico: url("icons/st-due.png"); }
+.ico-st-warn { --ico: url("icons/st-warn.png"); }
+.ico-st-na { --ico: url("icons/st-na.png"); }
+/* Status marks keep their colour wherever they appear — green done, red due/overdue/failed. */
+.st { width: 18px; height: 18px; vertical-align: -4px; }
+.st-done { color: var(--color-success); }
+.st-overdue, .st-due { color: var(--color-danger); }
+.st-warn { color: var(--color-warning); }
+.st-na { color: var(--color-ink-muted); }
+.row .ic .ico, .row .pri .ico { width: 18px; height: 18px; }
+.row .ic, .row .pri { flex: none; color: var(--color-ink-muted); }
+.row .pri .st-done { color: var(--color-success); }
+.row .pri .st-overdue, .row .pri .st-due { color: var(--color-danger); }
+.row .pri .st-warn { color: var(--color-warning); }
+.sub .ico { width: 14px; height: 14px; vertical-align: -2px; margin-right: 2px; }
+.fchip .ico { width: 14px; height: 14px; vertical-align: -2px; }
+.fchip.on .ico { color: #fff; }
+.spark.sm { width: 16px; height: 16px; vertical-align: -3px; }
+table.board .g .st { width: 16px; height: 16px; }
+.ico-work { --ico: url("icons/work.png"); }
+.ev .sm .ico { width: 16px; height: 16px; vertical-align: -3px; }
+.ev .sm .ico-work { color: var(--cal-grape); }
+
+/* demo mode: fictional data (manage.py demo) */
+.demo { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 2px 6px; border-radius: 6px; background: color-mix(in srgb, var(--color-warning) 25%, transparent); color: var(--color-ink); vertical-align: 2px; }

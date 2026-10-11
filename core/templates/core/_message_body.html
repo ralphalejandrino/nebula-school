@@ -1,0 +1,11 @@
+{% load nebula %}<article class="card msgfull">
+  <p class="muted small">{{ m.source|srcico }} {{ m.get_source_display }}{% if m.course %} · <b>{{ m.course }}</b>{% endif %} · {{ m.when|date:"D j M Y" }} {{ m.when|ampm }}</p>
+  <h2>{{ m.title|default:m.author }}</h2>
+  <p class="small">From {{ m.author|default:"—" }}{% if m.author_email %} &lt;{{ m.author_email }}&gt;{% endif %}</p>
+  {% if m.judge_tag %}<p class="tag">{% include "core/_sparkle.html" with sm=1 %} {{ m.judge_tag }} <span class="muted small">— {{ m.judge_model }}</span></p>{% endif %}
+  <p class="small">{% if m.gemini_eligible %}{% include "core/_sparkle.html" with sm=1 %} School data — eligible for the Gemini judge{% if m.judged_at %} (judged {{ m.judged_at|when }}){% else %} (not judged yet){% endif %}{% else %}{% icon "lock" %} Never sent to AI{% endif %}{% if m.keyword_hit %} · {% icon "key" %} keyword hit{% endif %}</p>
+  <div class="body">{{ m.body|linebreaksbr|urlize }}</div>
+  {% if gemini_prompt %}<p><button class="btn" data-copy="{{ gemini_prompt }}" data-open="https://gemini.google.com/app">{% include "core/_sparkle.html" %} Ask Gemini about this</button></p>{% endif %}
+  {% if m.url %}<p><a class="btn primary" href="{{ m.url }}" target="_blank" rel="noopener">{% if 'mail' in m.source %}Reply in Gmail ↗{% elif 'chat' in m.source %}Open in Chat ↗{% else %}Open original ↗{% endif %}</a></p>{% endif %}
+  {% for p in m.proposal_set.all %}<p class="small">Proposal: {{ p.get_kind_display }} {{ p.title }} — <b>{{ p.get_state_display }}</b></p>{% endfor %}
+</article>
