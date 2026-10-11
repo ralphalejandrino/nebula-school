@@ -12,6 +12,8 @@ For EVERY message id you were given, return one entry in `messages`:
   a requirement). false for greetings, receipts/confirmations of work already done,
   generic university PR, ads, and chatter.
 - `tag`: at most 60 characters, plain words, what matters ("Quiz moved to Wed 10:00 AM").
+  Name the day ("Mon 12 Oct", "Wed"), never "today", "tonight" or "tomorrow": the tag is read
+  for days after it is written.
   Empty when not relevant.
 
 Then `proposals`, one per distinct dated thing to put on their calendar:

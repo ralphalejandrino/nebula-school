@@ -103,9 +103,17 @@ _CAL_MARKS = (("✅ 💼", "done"), ("💼", "work"), ("📌", "due"), ("✅", "
 
 
 @register.filter
+def cleantitle(s):
+    """A gradebook name without the instructor's date stamp: see core/present.py."""
+    from core.present import clean_title
+    return clean_title(s)
+
+
+@register.filter
 def calsum(summary):
     """'📌 DUE: X' → <red pin> 'DUE: X';  '✅ SUBMITTED: X' → <green check> 'SUBMITTED: X'."""
-    s = (summary or "").strip()
+    from core.present import clean_event
+    s = clean_event((summary or "").strip())
     for prefix, kind in _CAL_MARKS:
         if s.startswith(prefix):
             rest = s[len(prefix):].lstrip(" ️")

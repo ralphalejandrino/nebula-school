@@ -8,9 +8,9 @@
   <h2 class="sec">Work</h2>
   <p class="muted small">Tap {% include "core/_sparkle.html" %} on a task: everything about it is copied and Gemini opens — paste it there.</p>
   <div class="card list">
-    {% for i, prompt in items %}<div class="row{% if i.submitted %} done{% endif %}"><span class="pri">{% if i.submitted %}{{ "done"|stico }}{% elif i.due and i.due < now %}{{ "overdue"|stico }}{% else %}{{ "due"|stico }}{% endif %}</span><span class="t">{{ i.title }}{% if i.pts %} <span class="muted">({{ i.pts|floatformat:0 }} pts)</span>{% endif %}<br><span class="sub">{{ i.due|dayname_dt }}</span></span>{% if not i.submitted %}<button class="btn small gem" data-copy="{{ prompt }}" data-open="https://gemini.google.com/app" title="Open this task in Gemini" aria-label="Open this task in Gemini">{% include "core/_sparkle.html" %}</button>{% endif %}</div>
+    {% for i, prompt in items %}<div class="row{% if i.done %} done{% endif %}"><span class="pri">{% if i.done %}{{ "done"|stico }}{% elif i.due and i.due < now %}{{ "overdue"|stico }}{% else %}{{ "due"|stico }}{% endif %}</span><span class="t">{{ i.title|cleantitle }}{% if i.pts %} <span class="muted">({{ i.pts|floatformat:0 }} pts)</span>{% endif %}<br><span class="sub">{{ i.due|dayname_dt }}{% if i.done and not i.submitted %} · marked done by you{% endif %}</span></span>{% if not i.done %}<button class="btn small gem" data-copy="{{ prompt }}" data-open="https://gemini.google.com/app" title="Open this task in Gemini" aria-label="Open this task in Gemini">{% include "core/_sparkle.html" %}</button>{% endif %}</div>
     {% empty %}{% if not props %}<p class="muted">Nothing in the last 2 weeks or ahead.</p>{% endif %}{% endfor %}
-    {% for p, prompt in props %}<div class="row"><span class="pri">{% include "core/_sparkle.html" with sm=1 %}</span><span class="t">{{ p.get_kind_display }} {{ p.title }}<br><span class="sub">{{ p.date|default:"no date" }} · {{ p.get_state_display }}</span></span>{% if p.kind != 'notice' %}<button class="btn small gem" data-copy="{{ prompt }}" data-open="https://gemini.google.com/app" title="Open this task in Gemini" aria-label="Open this task in Gemini">{% include "core/_sparkle.html" %}</button>{% endif %}</div>{% endfor %}
+    {% for p, prompt in props %}<div class="row"><span class="pri">{% include "core/_sparkle.html" with sm=1 %}</span><span class="t">{{ p.title }}<br><span class="sub">{{ p.get_kind_display }} · {% if p.date %}{{ p.date|dayname }}{% if p.time %}, {{ p.time|time:"g:i A" }}{% endif %}{% else %}no date{% endif %} · {% if p.state == "pending" %}<a href="{% url 'today' %}">to approve</a>{% else %}{{ p.get_state_display }}{% endif %}</span></span>{% if p.kind != 'notice' %}<button class="btn small gem" data-copy="{{ prompt }}" data-open="https://gemini.google.com/app" title="Open this task in Gemini" aria-label="Open this task in Gemini">{% include "core/_sparkle.html" %}</button>{% endif %}</div>{% endfor %}
   </div>
 
   <h2 class="sec">Revise with Gemini</h2>
@@ -30,11 +30,15 @@
   </div>
 </section>
 <section class="col side">
-  <h2 class="sec">Recent messages</h2>
+  <h2 class="sec">Messages that matter</h2>
   <div class="card list">
-    {% for m in msgs %}<a class="row" href="{% url 'message' m.pk %}"><span class="ic">{{ m.source|srcico }}</span><span class="t">{{ m.headline|truncatechars:80 }}</span><span class="why">{{ m.when|when }}</span></a>
-    {% empty %}<p class="muted">None yet.</p>{% endfor %}
+    {% for m in flagged %}<a class="row" href="{% url 'message' m.pk %}"><span class="ic">{{ m.source|srcico }}</span><span class="t">{{ m.headline|truncatechars:80 }}</span><span class="why">{{ m.when|when }}</span></a>
+    {% empty %}<p class="muted">Nothing flagged yet.</p>{% endfor %}
   </div>
+  {% if others %}<details class="small others"><summary>Other messages ({{ others|length }})</summary>
+  <div class="card list">
+    {% for m in others %}<a class="row" href="{% url 'message' m.pk %}"><span class="ic">{{ m.source|srcico }}</span><span class="t">{{ m.headline|truncatechars:80 }}</span><span class="why">{{ m.when|when }}</span></a>{% endfor %}
+  </div></details>{% endif %}
 </section>
 </div>
 {% endblock %}

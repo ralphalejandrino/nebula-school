@@ -20,6 +20,7 @@ from django.utils import timezone
 from . import gemini, quota
 from .models import Capture, Clarification, Item, Message, Proposal
 from .privacy import PrivacyViolation, eligible
+from .present import absolute_tag
 
 log = logging.getLogger("nebula")
 
@@ -91,7 +92,8 @@ def build_payload(messages, captures, today=None, known=None):
     for c in captures:
         cid = f"N{c.pk}"
         idmap[cid] = c
-        blocks.append(f"### {cid} | own note | course {c.course or '-'} | written "
+        who = "the student's answer to a question" if c.kind == "answer" else "own note"
+        blocks.append(f"### {cid} | {who} | course {c.course or '-'} | written "
                       f"{timezone.localtime(c.created):%a %Y-%m-%d %H:%M}\n{c.text}")
     today = timezone.localtime(today) if today else timezone.localtime()
     user = (f"Today is {today:%A %Y-%m-%d %H:%M} (Asia/Manila).\n\n"
@@ -219,13 +221,15 @@ def store(reply, idmap, model):
         obj = idmap.get(r.get("id"))
         if isinstance(obj, Message):
             obj.judge_relevant = bool(r.get("relevant"))
-            obj.judge_tag = (r.get("tag") or "")[:120] if r.get("relevant") else ""
+            # "Quiz tomorrow" goes stale at midnight; pin relative days to the message's date.
+            obj.judge_tag = absolute_tag((r.get("tag") or "")[:120], obj.when) if r.get("relevant") else ""
             obj.judge_model = model
     for obj in idmap.values():                     # judged even if the model skipped it
         obj.judged_at = now
         obj.save()
 
     made = 0
+    tracked = {}                                    # capture pk -> titles already tracked
     for p in reply.get("proposals", []):
         src = idmap.get(p.get("source_id"))
         if src is None:
@@ -236,6 +240,8 @@ def store(reply, idmap, model):
         course = (p.get("course") or "").upper().strip()
         course = course if course in COURSES else ""
         if _duplicate(course, p.get("kind"), d, p.get("title", "")):
+            if isinstance(src, Capture):
+                tracked.setdefault(src.pk, []).append((p.get("title") or "").strip())
             continue
         from .calwrite import apply_class_slot
         prop = Proposal(
@@ -249,6 +255,15 @@ def store(reply, idmap, model):
         apply_class_slot(prop)
         prop.save()
         made += 1
+    # A note must never just vanish: say what became of it (Capture tab, 2026-10-12).
+    for obj in idmap.values():
+        if isinstance(obj, Capture):
+            n = obj.proposal_set.count()
+            dup = tracked.get(obj.pk)
+            obj.outcome = (f"{n} proposal{'s' if n != 1 else ''}" if n else
+                           f"already tracked: {', '.join(dup)}"[:200] if dup else
+                           "kept as context" if obj.kind == "answer" else "nothing dated in it")
+            obj.save(update_fields=["outcome"])
     asked = 0
     for c in reply.get("clarifications", []):
         q = (c.get("question") or "").strip()

@@ -476,3 +476,215 @@ class Clash(TestCase):
             r = self.client.get(url)
             self.assertEqual(r.status_code, 200, url)
             self.assertContains(r, "Clashes")
+
+
+class CaptureTab(TestCase):
+    """The Capture tab, cleaned up 2026-10-12: a note always says what became of it, the
+    course defaults to the class on now, and answers are kept apart from notes."""
+
+    def setUp(self):
+        self.client.force_login(User.objects.create_user("x", password="pw"))
+
+    def test_save_and_list(self):
+        with mock.patch("core.views._bg") as bg:
+            self.client.post("/capture/", {"text": "quiz next meeting", "course": "INTRCS1"})
+        c = Capture.objects.get()
+        self.assertEqual((c.course, c.kind), ("INTRCS1", "note"))
+        bg.assert_called_once_with("judge", "--captures-only")
+        r = self.client.get("/capture/")
+        self.assertContains(r, "quiz next meeting")
+        self.assertContains(r, "Gemini is reading it")
+        self.assertContains(r, "NEBULA_CAPTURE_WAIT")
+
+    def test_unknown_course_and_empty_text(self):
+        with mock.patch("core.views._bg"):
+            self.client.post("/capture/", {"text": "x", "course": "NOPE1"})
+            self.client.post("/capture/", {"text": "   ", "course": "INTRCS1"})
+        self.assertEqual(list(Capture.objects.values_list("course", flat=True)), [""])
+
+    def test_course_defaults_to_the_class_on_now(self):
+        from .models import CalEvent
+        from .views import class_now
+        now = timezone.now()
+        CalEvent.objects.create(gid="c", summary="LITERA1 — Living in the IT Era", color="8",
+                                start=now - timedelta(minutes=30), end=now + timedelta(minutes=30))
+        CalEvent.objects.create(gid="w", summary="📌 DUE: PROGIT1 — Lab", color="11",
+                                start=now - timedelta(minutes=10), end=now + timedelta(minutes=50))
+        self.assertEqual(class_now(now), "LITERA1")               # a class, not a deadline
+        self.assertEqual(class_now(now + timedelta(hours=3)), "")  # long over → no guess
+        r = self.client.get("/capture/")
+        self.assertContains(r, 'value="LITERA1" checked')
+        self.assertContains(r, "is on now")
+
+    def test_outcome_is_recorded(self):
+        c = Capture.objects.create(text="Lab exam is open notes", course="INTRCS1")
+        a = Capture.objects.create(text="Answer to “Which group?”: 1", kind="answer")
+        q = Capture.objects.create(text="Quiz Wed 10:00 AM in F209", course="INTRCS1")
+        judge.store({"messages": [], "clarifications": [], "proposals": [
+            {"source_id": f"N{q.pk}", "kind": "quiz", "course": "INTRCS1", "title": "INTRCS1 Quiz",
+             "date": "2026-10-14", "time": "10:00", "evidence": "Quiz Wed 10:00 AM in F209",
+             "label": "stated"}]}, {f"N{c.pk}": c, f"N{a.pk}": a, f"N{q.pk}": q}, "m")
+        for x in (c, a, q):
+            x.refresh_from_db()
+        self.assertEqual(c.outcome, "nothing dated in it")
+        self.assertEqual(a.outcome, "kept as context")
+        self.assertEqual(q.outcome, "1 proposal")
+        self.assertContains(self.client.get("/capture/"), "INTRCS1 Quiz")
+
+    def test_duplicate_says_already_tracked(self):
+        from .models import Item
+        due = timezone.make_aware(datetime(2026, 10, 14, 23, 59))
+        Item.objects.create(uid="i", course="HUMCOM1", title="Week 9 Group Reporting", due=due)
+        c = Capture.objects.create(text="Week 9 group reporting due Wed", course="HUMCOM1")
+        judge.store({"messages": [], "clarifications": [], "proposals": [
+            {"source_id": f"N{c.pk}", "kind": "deadline", "course": "HUMCOM1",
+             "title": "Week 9 Group Reporting", "date": "2026-10-14", "time": "",
+             "evidence": "due Wed", "label": "stated"}]}, {f"N{c.pk}": c}, "m")
+        c.refresh_from_db()
+        self.assertEqual(c.outcome, "already tracked: Week 9 Group Reporting")
+
+    def test_answers_are_kept_apart(self):
+        from .models import Clarification
+        q = Clarification.objects.create(question="Which group?")
+        self.client.post(f"/question/{q.pk}/", {"answer": "Group 1"})
+        a = Capture.objects.get()
+        self.assertEqual(a.kind, "answer")
+        r = self.client.get("/capture/")
+        self.assertContains(r, "No notes yet")                    # not listed as a note
+        self.assertContains(r, "Your answers to questions (1)")
+
+    def test_delete(self):
+        c = Capture.objects.create(text="typo note")
+        p = Proposal.objects.create(kind="quiz", title="x", evidence="y", capture=c)
+        self.assertEqual(self.client.get(f"/capture/{c.pk}/delete/").status_code, 405)   # POST only
+        self.client.post(f"/capture/{c.pk}/delete/")
+        self.assertFalse(Capture.objects.exists())
+        self.assertTrue(Proposal.objects.filter(pk=p.pk).exists())  # the proposal stays
+
+    def test_status_counts_waiting_notes(self):
+        Capture.objects.create(text="a")
+        Capture.objects.create(text="b", judged_at=timezone.now())
+        self.assertEqual(self.client.get("/status.json").json()["captures_waiting"], 1)
+
+    def test_a_note_saved_during_a_sweep_is_judged_at_its_end(self):
+        Capture.objects.create(text="quiz next meeting")
+        with mock.patch.object(ingest, "_lms", return_value=(2, '{"ok": false}', "")), \
+                mock.patch.object(ingest, "import_ledger", return_value=0), \
+                mock.patch.object(ingest, "import_personal_mail", return_value=0), \
+                mock.patch.object(ingest, "import_calendar", return_value=0), \
+                mock.patch.object(judge, "run", return_value="ok") as jr:
+            ingest.sweep(trigger="test", apply_calendar=False)
+        self.assertEqual([c.kwargs for c in jr.call_args_list], [{}, {"include_messages": False}])
+
+
+class Review(TestCase):
+    """The 2026-10-12 review: each test is a thing a page really showed wrong."""
+
+    def setUp(self):
+        self.client.force_login(User.objects.create_user("x", password="pw"))
+
+    def test_clean_title(self):
+        from .present import clean_event, clean_title
+        raw = "Week 9- Group Reporting-Interaction Design Tools/Ethical&SocialImplications-10122026"
+        self.assertEqual(clean_title(raw),
+                         "Week 9 - Group Reporting-Interaction Design Tools / Ethical & Social Implications")
+        for keep in ("M LAB FA2 (If-Else, If-Else-If, Challenge: While; Code: A)", "PowerPoint Basics",
+                     "Lesson1.2-Self-Check Assessment", "MLW1: BIOS"):
+            self.assertEqual(clean_title(keep), keep)               # real hyphens and words untouched
+        self.assertEqual(clean_title("Week 6- Activity 1- 9/21&23/26"), "Week 6 - Activity 1")
+        self.assertEqual(clean_title("M LAB FA1 (if-else) [9/22,24]"), "M LAB FA1 (if-else)")
+        self.assertEqual(clean_event("📌 DUE: HUMCOM1 — Week 9- Report-10122026 (50 pts)"),
+                         "📌 DUE: HUMCOM1 — Week 9 - Report (50 pts)")
+
+    def test_absolute_tag(self):
+        from .present import absolute_tag
+        sun = timezone.make_aware(datetime(2026, 10, 11, 20, 38))
+        self.assertEqual(absolute_tag("Quiz tomorrow, do not be late", sun), "Quiz Mon 12 Oct, do not be late")
+        self.assertEqual(absolute_tag("Upload the video tonight", sun), "Upload the video Sun 11 Oct night")
+        self.assertEqual(absolute_tag("Paper due next meeting", sun), "Paper due next meeting")
+
+    def test_judge_stores_absolute_tags(self):
+        m = msg("chat_space", body="Quiz tomorrow", when=timezone.make_aware(datetime(2026, 10, 11, 20, 38)))
+        judge.store({"messages": [{"id": f"M{m.pk}", "relevant": True, "tag": "Quiz tomorrow"}],
+                     "proposals": [], "clarifications": []}, {f"M{m.pk}": m}, "x")
+        m.refresh_from_db()
+        self.assertEqual(m.judge_tag, "Quiz Mon 12 Oct")
+
+    def _run_with_held(self, course, title):
+        from .models import Run
+        Run.objects.create(finished=timezone.now(), complete=True,
+                           artifact={"held_by_you": [{"course": course, "title": title}]})
+
+    def test_course_page_respects_done_by_you(self):
+        from .models import Item
+        Item.objects.create(uid="a", course="LITERA1", title="Cybersecurity",
+                            due=timezone.now() - timedelta(days=3), pts=100)
+        self._run_with_held("LITERA1", "Cybersecurity")
+        r = self.client.get("/courses/LITERA1/")
+        self.assertContains(r, "marked done by you")
+        self.assertNotContains(r, "ico-st-overdue")
+
+    def test_courses_page_counts_calendar_items(self):
+        from .models import CalEvent
+        start = timezone.now() + timedelta(hours=8)
+        CalEvent.objects.create(gid="q", summary="📌 QUIZ: LITERA1 — Quiz · via Chat (Domingo)",
+                                start=start, end=start + timedelta(hours=1), color="11")
+        r = self.client.get("/courses/")
+        self.assertContains(r, "Next: <b>Quiz</b>")
+        self.assertContains(r, "1 ahead")
+
+    def test_course_proposals_read_cleanly(self):
+        Proposal.objects.create(kind="quiz", course="LITERA1", title="Quiz", evidence="e",
+                                date=timezone.localdate() + timedelta(days=1), state="written")
+        Proposal.objects.create(kind="quiz", course="LITERA1", title="Old dup", evidence="e",
+                                date=timezone.localdate() + timedelta(days=1), state="duplicate")
+        r = self.client.get("/courses/LITERA1/")
+        self.assertNotContains(r, "Quiz Quiz")
+        self.assertContains(r, "Tomorrow")
+        self.assertNotContains(r, "Old dup")                        # the calendar's now
+
+    def test_inbox_is_school_first_and_paged(self):
+        for k in range(55):
+            msg("school_mail", title=f"school {k}", when=timezone.now() - timedelta(minutes=k))
+        msg("personal_mail", title="Job alert", when=timezone.now())
+        r = self.client.get("/inbox/")
+        self.assertNotContains(r, "Job alert")
+        self.assertContains(r, "Older ›")
+        self.assertContains(self.client.get("/inbox/?src=personal_mail"), "Job alert")
+        self.assertContains(self.client.get("/inbox/?only=everything"), "Job alert")
+        p2 = self.client.get("/inbox/?page=2")
+        self.assertContains(p2, "‹ Newer")
+        self.assertContains(p2, "school 54")
+
+    def test_pack_status_rechecks_drive(self):
+        from django.conf import settings
+        from . import studypack
+        with tempfile.TemporaryDirectory() as d, override_settings(DATA_DIR=Path(d)):
+            (Path(d) / "packs").mkdir()
+            f = Path(d) / "packs" / "LITERA1.status.json"
+            f.write_text(json.dumps({"copied": True, "md5": "abc", "drive_verified": False, "built": "x"}))
+            with mock.patch.object(studypack, "drive_verified", return_value=True) as dv:
+                self.client.get("/courses/LITERA1/")
+                self.client.get("/courses/LITERA1/")
+            self.assertEqual(dv.call_count, 1)                       # remembered after the first yes
+            self.assertTrue(json.loads(f.read_text())["drive_verified"])
+
+    def test_backup_daily_and_rotated(self):
+        import sqlite3
+        from . import backup
+        with tempfile.TemporaryDirectory() as d:
+            db = Path(d) / "db.sqlite3"
+            sqlite3.connect(str(db)).execute("create table t (x)").connection.commit()
+            from django.db import connection
+            with override_settings(DATA_DIR=Path(d)), \
+                    mock.patch.dict(connection.settings_dict, {"NAME": str(db)}):
+                (Path(d) / "backups").mkdir()
+                for k in range(16):
+                    (Path(d) / "backups" / f"nebula-2026-09-{k + 1:02d}.sqlite3").write_text("old")
+                f = backup.daily()
+                self.assertIsNotNone(f)
+                self.assertIsNone(backup.daily())                    # once per day
+                self.assertEqual(oct(f.stat().st_mode & 0o777), "0o600")
+                self.assertEqual(sqlite3.connect(str(f)).execute(
+                    "select name from sqlite_master").fetchall(), [("t",)])
+                self.assertEqual(len(list((Path(d) / "backups").glob("nebula-*.sqlite3"))), 14)

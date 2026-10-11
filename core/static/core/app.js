@@ -60,5 +60,22 @@
     }, 5000);
   }
 
+  // Destructive forms ask first.
+  document.querySelectorAll("form[data-confirm]").forEach((f) => {
+    f.addEventListener("submit", (e) => { if (!window.confirm(f.dataset.confirm)) e.preventDefault(); });
+  });
+
+  // Capture: while Gemini reads a note, poll and reload once it is done.
+  if (window.NEBULA_CAPTURE_WAIT) {
+    let tries = 0;
+    const t = setInterval(async () => {
+      if (++tries > 36) return clearInterval(t);          // 3 minutes, then leave it to a manual refresh
+      try {
+        const s = await (await fetch("/status.json", { credentials: "same-origin" })).json();
+        if (!s.captures_waiting) { clearInterval(t); location.reload(); }
+      } catch (e) { /* offline: try again */ }
+    }, 5000);
+  }
+
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
 })();

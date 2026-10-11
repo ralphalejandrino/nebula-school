@@ -141,10 +141,15 @@ class CalEvent(models.Model):
 
 class Capture(models.Model):
     """A note typed in Nebula (things said in class). Replaces thumb-typing into inbox.md."""
+    KINDS = [("note", "note"), ("answer", "answer to a question")]
     text = models.TextField()
     course = models.CharField(max_length=12, blank=True)
+    kind = models.CharField(max_length=8, choices=KINDS, default="note")
     created = models.DateTimeField(auto_now_add=True)
     judged_at = models.DateTimeField(null=True, blank=True)
+    # What the judge made of it, in words ("nothing dated in it", "already tracked: …"), so
+    # a note never just disappears. Proposals it produced hang off proposal_set.
+    outcome = models.CharField(max_length=200, blank=True)
 
     class Meta:
         ordering = ["-created"]

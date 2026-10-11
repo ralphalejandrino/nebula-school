@@ -185,7 +185,19 @@ def seed(now=None):
         question="Which group are you in for the HUMCOM1 Week 9 report, and does it present today?",
         context="Groups 1 to 3 present today.")
     Capture.objects.create(text="Lab exam is open notes, but no laptops", course="INTRCS1",
-                           judged_at=now - timedelta(hours=2))
+                           judged_at=now - timedelta(hours=2), outcome="nothing dated in it")
+    rubric = Capture.objects.create(text="Bring a printed copy of the rubric on Wednesday",
+                                    course="HUMCOM1", judged_at=now - timedelta(minutes=50),
+                                    outcome="1 proposal")
+    wed = today + timedelta(days=(2 - today.weekday()) % 7 or 7)
+    Proposal.objects.create(capture=rubric, kind="buy", course="HUMCOM1",
+                            title="Print the HUMCOM1 rubric", date=wed, time=time(14, 0),
+                            evidence="Bring a printed copy of the rubric on Wednesday",
+                            label="stated", verified=True, model="gemini-flash")
+    Capture.objects.create(text="Group 2 presents the infographic first", course="NSTPRO1")
+    Capture.objects.create(text="Answer to “Which group are you in for the HUMCOM1 Week 9 report?”: "
+                                "Group 3", kind="answer", judged_at=now - timedelta(days=1),
+                           outcome="kept as context")
 
     # ---- the calendar: classes, deadlines, and one work clash ---------------------------
     n = 0

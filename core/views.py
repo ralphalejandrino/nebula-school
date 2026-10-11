@@ -17,6 +17,7 @@ from . import ingest, quota
 from .judge import COURSES
 from .models import CalEvent, Capture, Clarification, Item, Message, Proposal, Run
 from . import tutor
+from .present import clean_title, settled, upcoming
 from .studypack import materials, tutor_prompt
 
 # Kept for templates that still pass `icons`; the icon itself is drawn by the srcico filter.
@@ -133,12 +134,10 @@ def today(request):
     # Overdue = the LMS load's own reconciliation: what you marked done on the calendar
     # (held_by_you) and twins are excluded, and only the last 7 days count — older misses
     # are history, still listed on the course page.
-    art = (run.artifact or {}) if run else {}
-    settled = {(h.get("course"), h.get("title")) for h in
-               (art.get("held_by_you") or []) + (art.get("twins") or [])}
+    done_by_you = settled(run)
     overdue = [i for i in Item.objects.filter(submitted=False, due__lt=now,
                                               due__gte=now - timedelta(days=7)).order_by("-due")
-               if (i.course, i.title) not in settled]
+               if (i.course, i.title) not in done_by_you]
     tomorrow_items = list(Item.objects.filter(submitted=False, due__gte=hi, due__lt=hi + timedelta(days=1)))
     tasks = []
     from .judge import similar
@@ -157,16 +156,16 @@ def today(request):
         return out_
 
     def _label(e):
-        return e.summary.split(":", 1)[-1].split(" · via")[0].strip()
+        return clean_title(e.summary.split(":", 1)[-1].split(" · via")[0].strip())
 
     def _due(e):
         # Only cal_sync's gradebook events end ON the deadline; a class-slot 📌 starts on time.
         return e.end if e.deadline_at_end else e.start
     for i in overdue:
-        tasks.append({"pri": "overdue", "text": f"{i.course} {i.title}", "due": i.due, "tag": "overdue",
+        tasks.append({"pri": "overdue", "text": f"{i.course} {clean_title(i.title)}", "due": i.due, "tag": "overdue",
                       "prompt": tutor.for_item(i)})
     for i in due_today:
-        tasks.append({"pri": "due", "text": f"{i.course} {i.title}", "due": i.due, "tag": "today",
+        tasks.append({"pri": "due", "text": f"{i.course} {clean_title(i.title)}", "due": i.due, "tag": "today",
                       "prompt": tutor.for_item(i)})
     for e in _cal_pins(lo, hi, overdue + due_today):
         code = next((c for c in COURSES if c in e.summary), "")
@@ -176,7 +175,7 @@ def today(request):
     # Tomorrow: every 📌 on the calendar, plus gradebook items not already among them.
     pins_tmr = _cal_pins(hi, hi + timedelta(days=1), [])
     tomorrow = [{"text": _label(e), "due": _due(e)} for e in pins_tmr] + [
-        {"text": f"{i.course} — {i.title}", "due": i.due} for i in tomorrow_items
+        {"text": f"{i.course} — {clean_title(i.title)}", "due": i.due} for i in tomorrow_items
         if not any(similar(i.course, i.title, e.summary) for e in pins_tmr)]
     tomorrow.sort(key=lambda t: t["due"])
     tasks.sort(key=lambda t: (t["tag"] != "overdue", t["due"]))
@@ -212,23 +211,42 @@ def _group_by_day(events):
     return days
 
 
+PAGE = 50
+
+
 @login_required
 def inbox(request):
+    """School first: personal mail (job alerts, sign-in notices) buried every school message
+    under "All" (review 2026-10-12), so it now has its own chip and stays out of the default."""
     src, course = request.GET.get("src", ""), request.GET.get("course", "")
     qs = Message.objects.all()
     if src:
         qs = qs.filter(source=src)
+    elif request.GET.get("only") != "everything":
+        qs = qs.exclude(source="personal_mail")
     if course:
         qs = qs.filter(course=course)
     only = request.GET.get("only")
-    rows = list(qs.order_by("-when")[:200])
     if only == "matters":
-        rows = [m for m in rows if m.shows_in_brief]
+        from django.db.models import Q
+        qs = qs.filter(Q(keyword_hit=True) | Q(judge_relevant=True))
+    try:
+        page = max(1, int(request.GET.get("page", 1)))
+    except ValueError:
+        page = 1
+    rows = list(qs.order_by("-when")[(page - 1) * PAGE: page * PAGE + 1])
+    more = len(rows) > PAGE
+    rows = rows[:PAGE]
+    keep = request.GET.copy()
+    keep.pop("page", None)
+    keep.pop("m", None)
+    base = keep.urlencode()
     sel = None
     if request.GET.get("m"):
         sel = Message.objects.filter(pk=request.GET["m"]).first()
     return render(request, "core/inbox.html", {
         "rows": rows, "src": src, "course": course, "only": only, "sel": sel,
+        "page": page, "more": more, "base": base,
         "gemini_prompt": tutor.for_message(sel) if sel and sel.gemini_eligible else "",
         "sources": Message.SOURCES, "courses": list(COURSES), "icons": SOURCE_ICON})
 
@@ -253,11 +271,15 @@ def calendar(request):
 @login_required
 def courses(request):
     now = timezone.now()
+    done_by_you = settled(Run.objects.filter(finished__isnull=False).first())
+    items = [i for i in Item.objects.filter(submitted=False, due__gte=now)
+             if (i.course, i.title) not in done_by_you]
+    pins = list(CalEvent.objects.filter(end__gte=now, summary__startswith="📌"))
     cards = []
     for code, name in COURSES.items():
-        nxt = Item.objects.filter(course=code, submitted=False, due__gte=now).order_by("due").first()
-        cards.append({"code": code, "name": name, "next": nxt,
-                      "open": Item.objects.filter(course=code, submitted=False, due__gte=now).count(),
+        ahead = upcoming(code, now, items, pins)
+        cards.append({"code": code, "name": name, "next": ahead[0] if ahead else None,
+                      "open": len(ahead),
                       "recent": Message.objects.filter(course=code,
                                                        when__gte=now - timedelta(days=7)).count()})
     return render(request, "core/courses.html", {"cards": cards})
@@ -268,33 +290,89 @@ def course(request, code):
     if code not in COURSES:
         raise Http404
     now = timezone.now()
-    pack = settings.DATA_DIR / "packs" / f"{code}.status.json"
+    done_by_you = settled(Run.objects.filter(finished__isnull=False).first())
+    items = []
+    for i in Item.objects.filter(course=code).filter(due__gte=now - timedelta(days=14)):
+        # Work you marked done on the calendar is done here too — Today already said so.
+        i.done = i.submitted or (i.course, i.title) in done_by_you
+        items.append(i)
+    items.sort(key=lambda i: (i.done, i.due < now, i.due if i.due >= now else now - (i.due - now)))
+    # Messages the judge or the keyword floor flagged first; classmates' chatter folds away.
+    recent = list(Message.objects.filter(course=code).order_by("-when")[:60])
+    flagged = [m for m in recent if m.shows_in_brief][:15]
     return render(request, "core/course.html", {
         "code": code, "name": COURSES[code],
-        # Open work first (soonest due), then overdue, then submitted — dimmed, at the bottom.
-        "items": [(i, tutor.for_item(i) if not i.submitted else "") for i in sorted(
-            Item.objects.filter(course=code).filter(due__gte=now - timedelta(days=14)),
-            key=lambda i: (i.submitted, i.due < now, i.due if i.due >= now else now - (i.due - now)))],
-        "msgs": Message.objects.filter(course=code).order_by("-when")[:25],
+        "items": [(i, tutor.for_item(i) if not i.done else "") for i in items],
+        "flagged": flagged, "others": [m for m in recent if m not in flagged][:25],
+        # Proposals that are already on the calendar are the calendar's now; list the rest.
         "props": [(p, tutor.for_proposal(p)) for p in
-                  Proposal.objects.filter(course=code).exclude(state="rejected").order_by("-created")[:10]],
+                  Proposal.objects.filter(course=code, state__in=["pending", "approved", "written", "failed"])
+                  .exclude(date__lt=now.date() - timedelta(days=1)).order_by("date")[:10]],
         "materials": materials(code), "prompt": tutor_prompt(code),
-        "pack": json.loads(pack.read_text()) if pack.exists() else None,
+        "pack": _pack_status(code),
         "icons": SOURCE_ICON, "now": now})
+
+
+def _pack_status(code):
+    """The study pack's status file. "Drive still syncing" was only ever checked at build
+    time, so it said that forever; re-ask Drive (one call) until it confirms, then remember."""
+    f = settings.DATA_DIR / "packs" / f"{code}.status.json"
+    if not f.exists():
+        return None
+    st = json.loads(f.read_text())
+    if st.get("copied") and st.get("drive_verified") is not True and not settings.DEMO:
+        try:
+            from .studypack import drive_verified
+            if drive_verified(code, st["md5"]):
+                st["drive_verified"] = True
+                f.write_text(json.dumps(st))
+        except Exception:
+            pass                                    # offline / token: leave it as it was
+    return st
+
+
+def class_now(now=None):
+    """The course whose class is on now: started up to 15 min from now, or ended under
+    90 min ago (a note is usually typed during or just after class). From the calendar
+    snapshot's class events, so it follows the real timetable, moves and suspensions."""
+    now = now or timezone.now()
+    best = None
+    for e in CalEvent.objects.filter(color="8", start__lte=now + timedelta(minutes=15),
+                                     end__gte=now - timedelta(minutes=90)):
+        code = next((c for c in COURSES if c in e.summary), "")
+        if code and (best is None or e.start > best[0]):
+            best = (e.start, code)
+    return best[1] if best else ""
 
 
 @login_required
 def capture(request):
     if request.method == "POST":
         text = request.POST.get("text", "").strip()
+        course = request.POST.get("course", "")
         if text:
-            Capture.objects.create(text=text, course=request.POST.get("course", ""))
+            Capture.objects.create(text=text, course=course if course in COURSES else "")
             if not ingest.is_running():
                 _bg("judge", "--captures-only")
-            flash.success(request, "Saved — Gemini will turn it into a proposal shortly.")
+            flash.success(request, "Saved. Gemini is reading it — any dates show up below and in "
+                                   "To approve on Today.")
+        else:
+            flash.error(request, "Nothing to save — type what was said first.")
         return redirect("capture")
+    notes = Capture.objects.filter(kind="note").prefetch_related("proposal_set")[:30]
+    answers = Capture.objects.filter(kind="answer")[:20]
     return render(request, "core/capture.html", {
-        "caps": Capture.objects.all()[:30], "courses": list(COURSES)})
+        "notes": notes, "answers": answers, "courses": list(COURSES), "guess": class_now(),
+        "waiting": Capture.objects.filter(judged_at__isnull=True).count()})
+
+
+@login_required
+@require_POST
+def capture_delete(request, pk):
+    c = get_object_or_404(Capture, pk=pk)
+    c.delete()                      # its proposals stay (FK SET_NULL); the calendar is untouched
+    flash.info(request, "Note deleted.")
+    return redirect("capture")
 
 
 # ---------------------------------------------------------------- actions
@@ -334,7 +412,7 @@ def answer(request, pk):
     c.answered = timezone.now() if c.answer else None
     c.save()
     if c.answer:
-        Capture.objects.create(text=f"Answer to “{c.question}”: {c.answer}")
+        Capture.objects.create(text=f"Answer to “{c.question}”: {c.answer}", kind="answer")
         flash.success(request, "Answer saved.")
     return redirect(request.POST.get("next") or "today")
 
@@ -367,6 +445,7 @@ def build_pack(request, code):
 def status(request):
     run = Run.objects.first()
     return JsonResponse({"running": ingest.is_running(),
+                         "captures_waiting": Capture.objects.filter(judged_at__isnull=True).count(),
                          "last": run.started.isoformat() if run else None,
                          "finished": bool(run and run.finished)})
 

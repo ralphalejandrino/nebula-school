@@ -5,9 +5,10 @@
 <section class="col">
   <h1 class="page">Inbox</h1>
   <div class="chips">
-    <a class="fchip {% if not src and only != 'matters' %}on{% endif %}" href="?">All</a>
+    <a class="fchip {% if not src and not only %}on{% endif %}" href="?">School</a>
     <a class="fchip {% if only == 'matters' %}on{% endif %}" href="?only=matters{% if course %}&course={{ course }}{% endif %}">{% include "core/_sparkle.html" with sm=1 %} Matters</a>
     {% for k, label in sources %}<a class="fchip {% if src == k %}on{% endif %}" href="?src={{ k }}{% if course %}&course={{ course }}{% endif %}">{{ k|srcico }} {{ label }}</a>{% endfor %}
+    <a class="fchip {% if only == 'everything' %}on{% endif %}" href="?only=everything">Everything</a>
   </div>
   <div class="chips">
     {% for c in courses %}<a class="fchip sm {% if course == c %}on{% endif %}" href="?course={{ c }}{% if src %}&src={{ src }}{% endif %}">{{ c }}</a>{% endfor %}
@@ -23,6 +24,11 @@
     </a>
     {% empty %}<p class="muted">Nothing here.</p>{% endfor %}
   </div>
+  {% if page > 1 or more %}<nav class="pager small">
+    {% if page > 1 %}<a class="btn small" href="?{% if base %}{{ base }}&{% endif %}page={{ page|add:'-1' }}">‹ Newer</a>{% endif %}
+    <span class="muted">Page {{ page }}</span>
+    {% if more %}<a class="btn small" href="?{% if base %}{{ base }}&{% endif %}page={{ page|add:'1' }}">Older ›</a>{% endif %}
+  </nav>{% endif %}
 </section>
 <section class="col pane">
   {% if sel %}{% include "core/_message_body.html" with m=sel %}{% else %}<p class="muted center">Select a message.</p>{% endif %}

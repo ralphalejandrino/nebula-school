@@ -268,12 +268,22 @@ def sweep(trigger="cli", judge_after=True, apply_calendar=True):
             from . import judge
             try:
                 run.gemini = judge.run()
+                # A note saved WHILE the sweep ran was not started on its own (the tap found a
+                # sweep running) and may have missed this judge pass. Do it now, not hours later.
+                from .models import Capture
+                if Capture.objects.filter(judged_at__isnull=True).exists():
+                    judge.run(include_messages=False)
             except Exception as e:
                 run.gemini = f"UNKNOWN · {type(e).__name__}: {str(e)[:200]}"
                 log.error("judge failed\n%s", traceback.format_exc())
     finally:
         run.finished = timezone.now()
         run.save()
+        try:
+            from . import backup
+            backup.daily()                          # once a day; notes/approvals live only here
+        except Exception:
+            log.error("backup failed\n%s", traceback.format_exc())
         fcntl.flock(fh, fcntl.LOCK_UN)
         fh.close()
     return run

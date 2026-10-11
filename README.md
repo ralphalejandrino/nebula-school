@@ -17,6 +17,10 @@ text those channels carry and proposes calendar events, each backed by a verbati
 <img src="docs/screenshots/phone-calendar.png" width="24%" alt="Next 14 days, with a work/class clash flagged">
 <img src="docs/screenshots/phone-course.png" width="24%" alt="A course page with one-tap Gemini handoff">
 </p>
+<p>
+<img src="docs/screenshots/phone-capture.png" width="24%" alt="Capture: a note from class, the course preselected, and what became of each note">
+<img src="docs/screenshots/phone-courses.png" width="24%" alt="Courses, each with the next dated thing from the gradebook or the calendar">
+</p>
 
 ![Desktop: Today, with the 14-day agenda alongside](docs/screenshots/desktop-today.png)
 
@@ -60,6 +64,15 @@ A systemd timer ([`deploy/`](deploy)) runs one sweep four times a day, and the *
   out of quota or the network fails, the Sweep card turns red and says why.
 - **Nothing reaches the calendar without a tap.** Proposals wait in *To approve*. A duplicate
   of an event already on the calendar is detected and not written twice.
+- **A note never just disappears.** Things said out loud (in class, on a slide) go in
+  **Capture**, with the course preselected from the class that's on now. Each note then says what
+  became of it: a proposal waiting for approval, "already tracked", or "nothing dated in it".
+- **Pages agree with each other.** Work you marked done on the calendar is done on every page,
+  and a course's "next" thing comes from the calendar as well as the gradebook, because quizzes
+  announced in a chat never get a gradebook column.
+- **Your data is backed up daily.** The end of the first sweep each day copies the database
+  (`VACUUM INTO`, newest 14 kept, mode 0600) next to it. Notes, answers and approvals live
+  nowhere else.
 - **Tutoring is a handoff, not an API call.** The sparkle button copies everything about a task
   (instructions, due date, the instructor's own words, course files) and opens the Gemini app,
   so studying spends no API quota.
@@ -100,6 +113,7 @@ READMEs describe. `deploy/` has the systemd user units (gunicorn, plus the sweep
 | `manage.py sweep` | one full sweep (`--no-judge`, `--no-apply`) |
 | `manage.py judge` | judge pending messages only (`--captures-only` for typed notes) |
 | `manage.py studypack CODE` | build a course's study pack (PDF) |
+| `manage.py backup` | copy the database now (a sweep also does it once a day) |
 | `manage.py test core` | the suite: offline, the model and Calendar are faked |
 
 ## Layout
@@ -112,6 +126,8 @@ READMEs describe. `deploy/` has the systemd user units (gunicorn, plus the sweep
 | `core/ingest.py` | the sweep |
 | `core/calwrite.py` | turning an approved proposal into a calendar event, on the class slot when one fits |
 | `core/tutor.py`, `core/studypack.py` | the Gemini handoff and the per-course study pack |
+| `core/present.py` | how things are shown: clean gradebook titles, absolute dates, what counts as done |
+| `core/backup.py` | the daily database copy |
 | `core/demo.py` | the fictional demo data |
 | `core/views.py`, `core/templates/`, `core/static/` | the pages: a phone-first PWA that also works on a desktop |
 | `tools/md2pdf.py` | markdown to PDF through Chromium |

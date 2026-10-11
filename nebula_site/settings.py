@@ -20,6 +20,11 @@ LMS_DIR = _env_path("NEBULA_LMS_DIR", BASE_DIR.parent / "lms-deadline-sync")
 SCHOOL_DIR = _env_path("NEBULA_SCHOOL_DIR", os.environ.get("LMS_STATE_DIR") or LMS_DIR.parents[1])
 GWS_DIR = _env_path("NEBULA_GWS_DIR", BASE_DIR.parent / "gws-mcp")   # personal-Google token loader
 DATA_DIR = Path(os.environ.get("NEBULA_DATA", Path.home() / ".local/share/nebula"))
+if len(sys.argv) > 1 and sys.argv[1] == "test":
+    # Tests never touch the real data folder: a course page there once read the REAL study-pack
+    # status and called Google Drive from inside the test run (2026-10-12).
+    import tempfile
+    DATA_DIR = Path(tempfile.mkdtemp(prefix="nebula-test-"))
 CONF_DIR = Path(os.environ.get("NEBULA_CONF", Path.home() / ".config/nebula"))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 

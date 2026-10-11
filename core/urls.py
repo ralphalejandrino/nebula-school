@@ -11,6 +11,7 @@ urlpatterns = [
     path("courses/<str:code>/", views.course, name="course"),
     path("courses/<str:code>/pack/", views.build_pack, name="build_pack"),
     path("capture/", views.capture, name="capture"),
+    path("capture/<int:pk>/delete/", views.capture_delete, name="capture_delete"),
     path("proposal/<int:pk>/<str:verdict>/", views.proposal_decide, name="proposal_decide"),
     path("question/<int:pk>/", views.answer, name="answer"),
     path("sweep/", views.sweep_now, name="sweep_now"),
