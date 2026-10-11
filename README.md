@@ -6,6 +6,11 @@ every channel's messages, the calendar, and each course. It sits on top of
 Google Classroom, Google Chat, school mail and Facebook. Nebula adds a model that reads the free
 text those channels carry and proposes calendar events, each backed by a verbatim quote.
 
+> **A cleaned-up copy, prepared for publication.** This is a scrubbed snapshot of the app I run
+> privately, published for reading. Names of people, account details and machine-specific
+> paths are replaced; data, secrets and the Icons8 icons are left out. The history
+> here starts at publication; the working history stays private.
+
 <p>
 <img src="docs/screenshots/phone-today.png" width="24%" alt="Today: overdue and due-today work, tomorrow, proposals">
 <img src="docs/screenshots/phone-approve.png" width="24%" alt="Proposals to approve, each with its quote and source">
