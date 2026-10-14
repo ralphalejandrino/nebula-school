@@ -32,8 +32,6 @@
     <button class="btn primary wide" {% if nav_running %}disabled{% endif %}><i class="ico ico-sweep{% if nav_running %} spin{% endif %}" aria-hidden="true"></i> {% if nav_running %}Sweeping…{% else %}Sweep now{% endif %}</button>
   </form>
   <p class="muted small">{% if nav_last %}Last sweep {{ nav_last.finished|dayname_dt }}{% endif %}</p>
-  <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="linkbtn small">Sign out</button></form>
-  <p class="credit"><a href="https://icons8.com" target="_blank" rel="noopener">Icons by Icons8</a></p>
 </aside>
 {% endif %}
 <main class="main">

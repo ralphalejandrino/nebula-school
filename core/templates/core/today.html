@@ -13,6 +13,17 @@
     {% if tomorrow %}<div class="tmr"><p class="muted small"><b>Tomorrow</b></p>{% for t in tomorrow %}<div class="trow"><p class="small">{{ t.due|ampm }} · {{ t.text|truncatechars:70 }}</p>{% if t.prompt %}<button class="btn small gem" data-copy="{{ t.prompt }}" data-open="https://gemini.google.com/app" title="Open this task in Gemini" aria-label="Open this task in Gemini">{% include "core/_sparkle.html" %}</button>{% endif %}{% include "core/_done.html" with key=t.key choices=t.choices label=t.text %}</div>{% endfor %}</div>{% endif %}
   </div>
 
+  <h2 class="sec">Questions for you</h2>
+  <div class="card list">
+    {% for c in questions %}
+    <form method="post" action="{% url 'answer' c.pk %}" class="qa">{% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <label><span class="id">C{{ forloop.counter }}</span> {{ c.question }}</label>
+      <div class="inline"><input name="answer" placeholder="Your answer"><button class="btn">Save</button></div>
+    </form>
+    {% empty %}<p class="muted">— none —</p>{% endfor %}
+  </div>
+
   {% if recently_done %}
   <h2 class="sec">Marked done <span class="muted">· last 24 h</span></h2>
   <div class="card list">
@@ -30,17 +41,6 @@
   <div class="card list">
     {% for g in notices %}<a class="row" href="{% url 'message' g.m.pk %}"><span class="id">N{{ forloop.counter }}</span><span class="t">{% if g.course %}<b>{{ g.course }}</b> {% endif %}{{ g.m.judge_tag }}<br><span class="sub">{% for s in g.icons %}{{ s|srcico }}{% endfor %} {{ g.m.when|dayname_dt }}{% if g.n > 1 %} · on {{ g.n }} channels{% endif %}</span></span></a>
     {% empty %}<p class="muted">— nothing new that matters in the last 3 days —</p>{% endfor %}
-  </div>
-
-  <h2 class="sec">Questions for you</h2>
-  <div class="card list">
-    {% for c in questions %}
-    <form method="post" action="{% url 'answer' c.pk %}" class="qa">{% csrf_token %}
-      <input type="hidden" name="next" value="{{ request.get_full_path }}">
-      <label><span class="id">C{{ forloop.counter }}</span> {{ c.question }}</label>
-      <div class="inline"><input name="answer" placeholder="Your answer"><button class="btn">Save</button></div>
-    </form>
-    {% empty %}<p class="muted">— none —</p>{% endfor %}
   </div>
 
   <h2 class="sec">Emails</h2>
@@ -73,5 +73,4 @@
   {% include "core/_agenda.html" with days=agenda %}
 </section>
 </div>
-<p class="credit phone-only"><a href="https://icons8.com" target="_blank" rel="noopener">Icons by Icons8</a></p>
 {% endblock %}

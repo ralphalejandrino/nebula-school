@@ -641,6 +641,15 @@ class Views(TestCase):
         self.assertContains(self.client.get("/"), "never finished")
         self.assertContains(self.client.get("/inbox/"), "never finished")      # every page
 
+    def test_questions_sit_right_under_today(self):
+        # (2026-10-14) "put up the clarifications section under today"
+        self.client.login(username="student", password="pw")
+        html = self.client.get("/").content.decode()
+        heads = [h for h in ("Today</h2>", "Questions for you", "Notices", "Emails") if h in html]
+        self.assertEqual(heads, ["Today</h2>", "Questions for you", "Notices", "Emails"])
+        self.assertLess(html.index("Questions for you"), html.index("Notices"))
+        self.assertLess(html.index("Today</h2>"), html.index("Questions for you"))
+
     def test_dead_sweep_negative_controls(self):
         from .models import Run
         self.client.login(username="student", password="pw")

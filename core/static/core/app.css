@@ -163,7 +163,7 @@ input, textarea, select { font: inherit; font-size: 16px; width: 100%; padding: 
   .calgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 var(--space-6); }
 }
 
-/* Icons8 "Material Outlined" PNGs (free licence: credited in the sidebar / footer), drawn as
+/* Icons8 "Material Outlined" PNGs (credit removed from the UI at the student's request, 2026-10-14), drawn as
    masks so they take the text colour — blue when active, grey otherwise, light in dark mode. */
 .ico { display: inline-block; width: 20px; height: 20px; flex: none; vertical-align: -4px;
   background-color: currentColor; -webkit-mask: var(--ico) center / contain no-repeat;
