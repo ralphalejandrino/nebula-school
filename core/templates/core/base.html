@@ -3,7 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#1d4ed8">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+{# Paint the page colour before the stylesheet arrives: no white flash between tabs in dark mode. #}
+<style>html{background:#000}</style>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Nebula">
@@ -43,6 +46,7 @@
     </form>
   </header>
   {% endif %}
+  {% if nav_dead %}<div class="flashes">{% for r in nav_dead %}<div class="flash error">🔴 The sweep that started {{ r.started|dayname_dt }} never finished — it was stopped before it could save. Whatever it was checking is UNKNOWN for that run.</div>{% endfor %}</div>{% endif %}
   {% if messages %}<div class="flashes">{% for m in messages %}<div class="flash {{ m.tags }}">{{ m }}</div>{% endfor %}</div>{% endif %}
   {% block content %}{% endblock %}
 </main>

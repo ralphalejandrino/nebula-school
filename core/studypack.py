@@ -50,8 +50,9 @@ def tutor_prompt(code, focus=None):
     name = COURSES.get(code, code)
     tgt = f" for {focus}" if focus else " for my next assessment"
     return (f"You are my tutor for {code} ({name}){tgt}. Use @Google Drive: open "
-            f"\"{code}-study-pack.pdf\" in school-out/{code}/study-pack and the module files it "
-            f"lists. First ask me 3 diagnostic questions, then teach only what I got wrong, then "
+            f"\"{code} course guide\" in school-out/{code}, then \"{code}-study-pack.pdf\" in "
+            f"school-out/{code}/study/study-pack, and the module files in "
+            f"school-out/{code}/materials/blackboard. First ask me 3 diagnostic questions, then teach only what I got wrong, then "
             f"quiz me with 10 exam-style questions one at a time and check each answer against "
             f"the module. Quote the module when you correct me. Don't just summarise.")
 
@@ -115,7 +116,7 @@ def publish(code):
     STAGE.mkdir(parents=True, exist_ok=True)
     staged = STAGE / pdf.name
     staged.write_bytes(pdf.read_bytes())
-    dest_dir = f"{settings.DRIVE_OUT}\\{code}\\study-pack"
+    dest_dir = f"{settings.DRIVE_OUT}\\{code}\\study\\study-pack"
     ps = (f"$d='{dest_dir}'; New-Item -ItemType Directory -Force -Path $d | Out-Null; "
           f"Copy-Item -Force 'C:\\Temp\\nebula\\{pdf.name}' (Join-Path $d '{pdf.name}'); "
           f"(Get-FileHash -Algorithm MD5 (Join-Path $d '{pdf.name}')).Hash")

@@ -2,40 +2,49 @@
 {% block title %}Capture · Nebula{% endblock %}
 {% block content %}
 <h1 class="page">Capture</h1>
-<p class="muted small lead">Something said in class, on a slide or by a groupmate. Gemini reads it for dates, and
-anything it finds waits in <b>To approve</b> on Today.</p>
+<p class="muted small lead">Tell Nebula what was said in class, a correction, or ask about your work. It replies right away
+(Flash-Lite); anything dated is checked at the <b>{{ sweep|date:"g:i A" }}</b> sweep and waits in <b>To approve</b> on Today.</p>
 
-<form method="post" class="card form capform">{% csrf_token %}
-  <textarea name="text" rows="3" required aria-label="What was said"
-            placeholder="e.g. Quiz next meeting on binary to decimal, bring a calculator"></textarea>
+<div class="chat" id="chat">
+  {% for t in turns %}
+  {% if t.role == "me" %}
+  <div class="bub me">
+    <div class="txt">{% if t.capture.course %}<span class="code">{{ t.capture.course }}</span> {% endif %}{{ t.text }}</div>
+    <div class="meta">{{ t.created|when }} ·
+      {% if not t.capture %}deleted
+      {% elif not t.capture.judged_at %}<span class="pending">⏳ checked at {{ sweep|date:"g:i A" }}</span>
+      {% else %}{% for p in t.props %}{% if p.state == "pending" %}<a href="{% url 'today' %}">{{ p.get_kind_display }}: {{ p.title }}{% if p.date %} · {{ p.date|dayname }}{% endif %} — to approve</a>{% else %}{{ p.get_kind_display }}: {{ p.title }}{% if p.date %} · {{ p.date|dayname }}{% endif %} — {{ p.get_state_display }}{% endif %}{% if not forloop.last %}; {% endif %}{% empty %}✓ {{ t.capture.outcome|default:"checked" }}{% endfor %}{% endif %}
+      {% if t.capture %}<form method="post" action="{% url 'capture_delete' t.capture.pk %}" class="del" data-confirm="Delete this note? Anything already on your calendar stays.">{% csrf_token %}<button class="linkbtn" aria-label="Delete this note" title="Delete">✕</button></form>{% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="bub nb">
+    <div class="txt">{{ t.text }}</div>
+    {% if t.urgent %}<div class="urgent">{{ "warn"|stico }} {{ t.urgent_why|default:"This can't wait for the sweep." }}
+      {% if t.checked_now %}<span class="muted small">· checking…</span>{% elif waiting %}<form method="post" action="{% url 'chat_check' t.pk %}">{% csrf_token %}<button class="btn small">Check now</button></form>{% endif %}</div>{% endif %}
+  </div>
+  {% endif %}
+  {% empty %}
+  <p class="muted center small">No messages yet. Try: “Quiz next meeting on binary to decimal, bring a calculator.”</p>
+  {% endfor %}
+</div>
+
+<form method="post" class="card form chatform">{% csrf_token %}
   <fieldset class="cchips">
-    <legend class="small muted">Course{% if guess %} · <b>{{ guess }}</b> is on now{% endif %}</legend>
     <div class="chiprow">
-      <label class="cchip"><input type="radio" name="course" value=""{% if not guess %} checked{% endif %}><span>None</span></label>
+      <label class="cchip"><input type="radio" name="course" value=""{% if not guess %} checked{% endif %}><span>No course</span></label>
       {% for c in courses %}<label class="cchip"><input type="radio" name="course" value="{{ c }}"{% if c == guess %} checked{% endif %}><span>{{ c }}</span></label>{% endfor %}
     </div>
   </fieldset>
-  <button class="btn primary wide">Save note</button>
-</form>
-
-<h2 class="sec">Your notes{% if waiting %} <span class="reading">· Gemini is reading {{ waiting }}</span>{% endif %}</h2>
-<div class="card list">
-  {% for c in notes %}
-  <div class="row note">
-    <span class="ic">{% icon "pencil" %}</span>
-    <span class="t">{% if c.course %}<span class="code">{{ c.course }}</span> {% endif %}<span class="txt">{{ c.text }}</span><br>
-      <span class="sub">{{ c.created|when }} ·
-        {% if not c.judged_at %}<span class="reading">Gemini is reading it…</span>
-        {% else %}{% for p in c.proposal_set.all %}{% if p.state == "pending" %}<a href="{% url 'today' %}">{{ p.get_kind_display }}: {{ p.title }}{% if p.date %} · {{ p.date|dayname }}{% endif %} — to approve</a>{% else %}{{ p.get_kind_display }}: {{ p.title }}{% if p.date %} · {{ p.date|dayname }}{% endif %} — {{ p.get_state_display }}{% endif %}{% if not forloop.last %}; {% endif %}{% empty %}{{ c.outcome|default:"read" }}{% endfor %}{% endif %}
-      </span></span>
-    <form method="post" action="{% url 'capture_delete' c.pk %}" class="del" data-confirm="Delete this note? Anything already on your calendar stays.">{% csrf_token %}
-      <button class="linkbtn" aria-label="Delete this note" title="Delete">✕</button></form>
+  <div class="sendrow">
+    <textarea name="text" rows="2" required aria-label="Message" placeholder="Message Nebula"></textarea>
+    <button class="btn primary send" aria-label="Send">Send</button>
   </div>
-  {% empty %}<p class="muted">No notes yet. What's said out loud never reaches Blackboard or Chat, so this is where it goes.</p>{% endfor %}
-</div>
+  <p class="muted small quota">Flash-Lite today: {{ lite.used }}/{{ lite.limit }}{% if lite.exhausted %} — used up{% endif %} · the sweep's models are never used here</p>
+</form>
 
 {% if answers %}<details class="small answers"><summary>Your answers to questions ({{ answers|length }})</summary>
   <ul class="plain">{% for a in answers %}<li>{{ a.text }} <span class="muted">{{ a.created|when }}</span></li>{% endfor %}</ul>
 </details>{% endif %}
-{% if waiting %}<script>window.NEBULA_CAPTURE_WAIT = true;</script>{% endif %}
+<script>(function(){var c=document.getElementById("chat");if(c&&c.lastElementChild)c.lastElementChild.scrollIntoView({block:"end"});})();</script>
 {% endblock %}

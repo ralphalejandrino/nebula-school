@@ -135,6 +135,16 @@ class CalEvent(models.Model):
         return self.summary.lstrip("✅ ").startswith("💼") or self.color in ("1", "3")
 
     @property
+    def closable(self):
+        """A school 📌 the ✓ button may close (2026-10-12)."""
+        return self.summary.startswith("📌") and not self.is_work
+
+    @property
+    def done_choices(self):
+        from .done import choices
+        return choices(self.summary)
+
+    @property
     def is_class(self):
         return self.color == "8"
 
@@ -181,6 +191,12 @@ class Proposal(models.Model):
     state = models.CharField(max_length=10, choices=STATES, default="pending")
     event_id = models.CharField(max_length=200, blank=True)
     event_link = models.URLField(max_length=600, blank=True)
+    # A date change (#2, 2026-10-14): the OLD 📌 event this replaces. On approve it is retitled
+    # "↪ MOVED → <new date>: …", graphite, no reminders — kept, never deleted.
+    replaces_event_id = models.CharField(max_length=200, blank=True)
+    replaces_summary = models.CharField(max_length=400, blank=True)
+    replaces_date = models.DateField(null=True, blank=True)
+    moved_done = models.BooleanField(default=False)
     error = models.TextField(blank=True)
     created = models.DateTimeField(auto_now_add=True)
     decided = models.DateTimeField(null=True, blank=True)
@@ -221,3 +237,43 @@ class QuotaUse(models.Model):
 
     class Meta:
         unique_together = [("model", "day")]
+
+
+class DoneMark(models.Model):
+    """the student said "this is done" in Nebula (2026-10-12: "there's no way to confirm whether a task
+    has been accomplished so it's never marked correctly in the calendar").
+
+    key = an Item uid (`_808_1:_30474_1`) or a calendar event id. The `before_*` fields keep the
+    event exactly as it was, so Undo restores it rather than guessing."""
+    key = models.CharField(max_length=200, unique=True)
+    course = models.CharField(max_length=12, blank=True)
+    title = models.CharField(max_length=300)
+    word = models.CharField(max_length=12)                       # SUBMITTED | DONE | ATTENDED
+    event_id = models.CharField(max_length=200, blank=True)      # "" = no event existed to close
+    before_summary = models.CharField(max_length=400, blank=True)
+    before_color = models.CharField(max_length=4, blank=True)
+    before_description = models.TextField(blank=True)
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created"]
+
+    def __str__(self):
+        return f"✅ {self.word}: {self.title}"
+
+
+class ChatTurn(models.Model):
+    """One line of the Capture chat (2026-10-13). the student's lines are also Captures, so the sweep's
+    judge reads them; Nebula's replies come from Flash-Lite and never decide anything."""
+    ROLES = [("me", "the student"), ("nebula", "Nebula")]
+    role = models.CharField(max_length=6, choices=ROLES)
+    text = models.TextField()
+    capture = models.ForeignKey(Capture, null=True, blank=True, on_delete=models.SET_NULL)
+    model = models.CharField(max_length=60, blank=True)
+    urgent = models.BooleanField(default=False)          # a deadline lands before the next sweep
+    urgent_why = models.CharField(max_length=200, blank=True)
+    checked_now = models.BooleanField(default=False)     # the student tapped "Check now"
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created"]

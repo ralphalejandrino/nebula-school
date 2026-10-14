@@ -7,6 +7,7 @@
   </div>
   <h3>{{ p.title }}</h3>
   <p class="when">{% if p.date %}{{ p.date|dayname }}{% if p.time %} · {{ p.time|time:"g:i A" }}{% if p.end_time %}–{{ p.end_time|time:"g:i A" }}{% endif %}{% if "class slot" in p.verify_note %} (your class){% endif %}{% endif %}{% else %}No date{% endif %}{% if p.room %} · {{ p.room }}{% endif %}</p>
+  {% if p.replaces_event_id %}<p class="small">↪ <b>Moves</b> it from {{ p.replaces_date|dayname }} — the old event becomes “↪ MOVED” (kept, not deleted).</p>{% endif %}
   <blockquote>“{{ p.evidence }}”</blockquote>
   <p class="muted small">{% if p.message %}{{ p.message.source|srcico }} From the <b>{{ p.message.source_long }}</b>{% if p.message.author %} — {{ p.message.author }}{% endif %} · {{ p.message.when|dayname_dt }} · <a href="{% url 'message' p.message.pk %}">read it</a>{% elif p.capture %}{% icon "pencil" %} your note{% endif %}{% if not p.verified %} · {{ p.verify_note }}{% endif %}</p>
   <div class="actions">

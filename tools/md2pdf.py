@@ -96,6 +96,9 @@ pre {
   padding: 2.5mm 3mm; overflow-x: auto; font-size: 8.7pt; line-height: 1.42;
   break-inside: avoid; page-break-inside: avoid; margin: 2.5mm 0 4mm;
 }
+/* 2026-10-14: wrap, never clip. A long URL in a build card ran off the page edge and print
+   cannot scroll, so the end of the code was silently lost. */
+pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 pre code { background: none; padding: 0; font-size: inherit; }
 
 blockquote {

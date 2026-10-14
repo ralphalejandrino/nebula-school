@@ -8,10 +8,17 @@
 
   <h2 class="sec">Today</h2>
   <div class="card list">
-    {% for t in tasks %}<div class="row"><span class="id">T{{ forloop.counter }}</span><span class="pri">{{ t.pri|stico }}</span><span class="t">{{ t.text }}<br><span class="sub">{% if t.tag == 'overdue' %}overdue · {{ t.due|dayname_dt }}{% else %}{{ t.due|ampm }}{% endif %}</span></span><button class="btn small gem" data-copy="{{ t.prompt }}" data-open="https://gemini.google.com/app" title="Open this task in Gemini" aria-label="Open this task in Gemini">{% include "core/_sparkle.html" %}</button></div>
+    {% for t in tasks %}<div class="row"><span class="id">T{{ forloop.counter }}</span><span class="pri">{{ t.pri|stico }}</span><span class="t">{{ t.text }}<br><span class="sub">{% if t.tag == 'overdue' %}overdue · {{ t.due|dayname_dt }}{% else %}{{ t.due|ampm }}{% endif %}</span></span><span class="acts"><button class="btn small gem" data-copy="{{ t.prompt }}" data-open="https://gemini.google.com/app" title="Open this task in Gemini" aria-label="Open this task in Gemini">{% include "core/_sparkle.html" %}</button>{% include "core/_done.html" with key=t.key choices=t.choices label=t.text %}</span></div>
     {% empty %}<p class="muted">— nothing due today —</p>{% endfor %}
-    {% if tomorrow %}<div class="tmr"><p class="muted small"><b>Tomorrow</b></p>{% for t in tomorrow %}<p class="small">{{ t.due|ampm }} · {{ t.text|truncatechars:70 }}</p>{% endfor %}</div>{% endif %}
+    {% if tomorrow %}<div class="tmr"><p class="muted small"><b>Tomorrow</b></p>{% for t in tomorrow %}<div class="trow"><p class="small">{{ t.due|ampm }} · {{ t.text|truncatechars:70 }}</p>{% if t.prompt %}<button class="btn small gem" data-copy="{{ t.prompt }}" data-open="https://gemini.google.com/app" title="Open this task in Gemini" aria-label="Open this task in Gemini">{% include "core/_sparkle.html" %}</button>{% endif %}{% include "core/_done.html" with key=t.key choices=t.choices label=t.text %}</div>{% endfor %}</div>{% endif %}
   </div>
+
+  {% if recently_done %}
+  <h2 class="sec">Marked done <span class="muted">· last 24 h</span></h2>
+  <div class="card list">
+    {% for d in recently_done %}<div class="row done"><span class="pri">{{ "done"|stico }}</span><span class="t">{% if d.course %}<b>{{ d.course }}</b> {% endif %}{{ d.title|cleantitle|truncatechars:80 }}<br><span class="sub">✅ {{ d.word }} · {% if d.event_id %}calendar closed{% else %}no calendar event{% endif %} · {{ d.created|ampm }}</span></span><form method="post" action="{% url 'undo_done' d.pk %}" data-confirm="Undo — put it back on the calendar as it was?">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn small">Undo</button></form></div>{% endfor %}
+  </div>
+  {% endif %}
 
   {% if proposals %}
   <h2 class="sec">To approve <span class="badge">{{ proposals|length }}</span></h2>

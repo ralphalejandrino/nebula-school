@@ -11,10 +11,12 @@ class Command(BaseCommand):
         p.add_argument("--captures-only", action="store_true",
                        help="judge only your typed notes (cheap; one request)")
         p.add_argument("--days", type=int, default=judge.MAX_AGE_DAYS)
+        p.add_argument("--reserve", type=int, default=0,
+                       help="leave this many requests per Flash model for the sweeps (chat: 10)")
 
     def handle(self, *a, **o):
         if o["captures_only"]:
-            status = judge.run(include_messages=False)
+            status = judge.run(include_messages=False, reserve=o["reserve"])
         else:
             status = judge.run(max_age_days=o["days"])
         last = Run.objects.filter(finished__isnull=False).first()

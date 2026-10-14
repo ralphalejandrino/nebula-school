@@ -1,28 +1,23 @@
 /* Nebula — token scale inherited from TarsierPOS shared-styles.css (locked 2026-05-17):
    same --color-* semantics, --space-*, --text-*, --radius-*, --shadow-*. Dark mode added
    for the phone. Google Calendar colour ids are mirrored so events read the same here. */
+/* 🖤 OLED black, always (2026-10-12) "change the color into just black so I can make use of
+   my phone's OLED screen"). One theme, not light/dark: the page and the cards are true #000, so the
+   panel switches those pixels off; cards are told apart by a hairline border, not a lighter fill. */
 :root {
-  --color-primary: #1d4ed8; --color-primary-hover: #1e40af; --color-primary-light: #dbeafe;
-  --color-success: #16a34a; --color-danger: #dc2626; --color-warning: #f59e0b;
-  --color-surface: #ffffff; --color-surface-alt: #f9fafb; --color-ink: #1f2937;
-  --color-ink-muted: #6b7280; --color-border: #e5e7eb; --color-page: #f3f4f6;
+  --color-primary: #3b82f6; --color-primary-hover: #60a5fa; --color-primary-light: #0b1a33;
+  --color-success: #22c55e; --color-danger: #f87171; --color-warning: #fbbf24;
+  --color-surface: #000000; --color-surface-alt: #0d0d0d; --color-ink: #e5e7eb;
+  --color-ink-muted: #8b8f98; --color-border: #222428; --color-page: #000000;
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px;
   --text-xs: .75rem; --text-sm: .875rem; --text-base: 1rem; --text-lg: 1.25rem; --text-xl: 1.5rem;
   --radius-sm: .5rem; --radius-md: .75rem; --radius-lg: 1rem;
-  --shadow-subtle: 0 1px 2px rgba(0,0,0,.05);
-  --shadow-raised: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -2px rgba(0,0,0,.1);
+  --shadow-subtle: none;
+  --shadow-raised: 0 0 0 1px #2a2d33;
   --cal-flamingo: #e67c73; --cal-peacock: #039be5; --cal-sage: #33b679; --cal-graphite: #616161;
   --cal-tomato: #d50000; --cal-lavender: #7986cb; --cal-grape: #8e24aa; --cal-default: #4285f4;
   --tab-h: 64px;
-  color-scheme: light dark;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-primary: #3b82f6; --color-primary-hover: #60a5fa; --color-primary-light: #172554;
-    --color-success: #22c55e; --color-danger: #f87171; --color-warning: #fbbf24;
-    --color-surface: #111827; --color-surface-alt: #1f2937; --color-ink: #e5e7eb;
-    --color-ink-muted: #9ca3af; --color-border: #2b3544; --color-page: #0b1020;
-  }
+  color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -39,7 +34,7 @@ a { color: var(--color-primary); text-decoration: none; }
 .row { display: flex; flex-wrap: wrap; gap: 2px var(--space-2); align-items: baseline; padding: var(--space-2) var(--space-4);
   color: inherit; border-bottom: 1px solid var(--color-border); }
 .row:last-child { border-bottom: 0; }
-.row .t { flex: 1 1 55%; min-width: 0; overflow-wrap: anywhere; }
+.row .t { flex: 1 1 50%; min-width: 0; overflow-wrap: anywhere; }
 .row .why { color: var(--color-ink-muted); font-size: var(--text-xs); flex: 0 1 auto; max-width: 100%; text-align: right; margin-left: auto; }
 .row .id { font: 600 var(--text-xs)/1 ui-monospace, monospace; color: var(--color-ink-muted); min-width: 2.2em; }
 .row.unread .t b { color: var(--color-primary); }
@@ -74,9 +69,7 @@ a { color: var(--color-primary); text-decoration: none; }
 .flashes { margin: var(--space-3) 0; }
 .flash { padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); margin-bottom: var(--space-2);
   background: var(--color-primary-light); }
-.flash.error { background: #fee2e2; color: #991b1b; } .flash.success { background: #dcfce7; color: #14532d; }
-@media (prefers-color-scheme: dark) { .flash.error { background: #450a0a; color: #fecaca; }
-  .flash.success { background: #052e16; color: #bbf7d0; } }
+.flash.error { background: #2a0707; color: #fecaca; } .flash.success { background: #04220f; color: #bbf7d0; }
 table.board { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
 table.board td { padding: 3px 4px; vertical-align: top; border-bottom: 1px solid var(--color-border); }
 table.board tr:last-child td { border: 0; }
@@ -93,8 +86,8 @@ ul.plain { list-style: none; padding: 0; margin: var(--space-2) 0 0; }
 .chip.k-event { background: var(--cal-peacock); } .chip.k-notice { background: var(--cal-graphite); }
 .warn { color: var(--color-warning); font-weight: 600; } .lbl { color: var(--color-ink-muted); }
 .swipe { touch-action: pan-y; transition: transform .15s ease; position: relative; }
-.swipe.go-right { background: linear-gradient(90deg, #dcfce7, var(--color-surface)); }
-.swipe.go-left { background: linear-gradient(270deg, #fee2e2, var(--color-surface)); }
+.swipe.go-right { background: linear-gradient(90deg, #04220f, var(--color-surface)); }
+.swipe.go-left { background: linear-gradient(270deg, #2a0707, var(--color-surface)); }
 .tag { background: var(--color-primary-light); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); }
 .msgfull .body { white-space: normal; overflow-wrap: anywhere; font-size: var(--text-sm); margin: var(--space-3) 0; }
 .msgfull h2 { margin: 4px 0; font-size: var(--text-lg); }
@@ -255,3 +248,62 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offs
 .answers { margin-top: var(--space-3); }
 .pager { display: flex; gap: var(--space-2); align-items: center; justify-content: center; margin: var(--space-3) 0; }
 .others { margin-top: var(--space-3); } .others summary { margin-bottom: var(--space-2); }
+
+/* Tab switches no longer load a new page: app.js swaps only what changed, so the header and
+   tab bar never leave the screen (2026-10-12). Cross-page view transitions were tried first
+   and removed — still flaky on the phone, and they threw "Transition was skipped". */
+/* While a tab refreshes from the laptop: a thin bar under the status bar. */
+html.loading::before { content: ""; position: fixed; z-index: 100; left: 0; right: 0;
+  top: env(safe-area-inset-top); height: 2px; background: var(--color-primary);
+  transform-origin: left; animation: nebula-load 1.2s ease-in-out infinite; }
+@keyframes nebula-load { 0% { transform: scaleX(0); } 60% { transform: scaleX(.8); } 100% { transform: scaleX(1); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { html.loading::before { animation: none; transform: none; opacity: .6; } }
+/* ✓ mark done (2026-10-12) */
+.donebtn { min-width: 40px; min-height: 36px; align-self: center; flex: none; display: inline-flex; align-items: center;
+  justify-content: center; padding: 4px 8px; color: var(--cal-sage); font-weight: 700; list-style: none; }
+.donebtn::-webkit-details-marker { display: none; }
+.row > form, .row > details { margin: 0; align-self: center; }
+.done-menu { position: relative; }
+.done-pop { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; display: flex; flex-direction: column; gap: 6px;
+  background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 8px;
+  min-width: 210px; box-shadow: var(--shadow-raised); }
+.done-pop form { margin: 0; } .done-pop .btn { width: 100%; text-align: left; }
+.tmr .trow { display: flex; align-items: center; gap: var(--space-2); }
+.tmr .trow p { flex: 1; }
+.evwrap { display: flex; align-items: stretch; gap: 6px; } .evwrap > a { flex: 1; min-width: 0; }
+.evwrap > form, .evwrap > details { margin: 0; align-self: center; }
+.row .acts { display: inline-flex; gap: 6px; flex: none; align-self: center; margin-left: auto; }
+.row .acts > form, .row .acts > details { margin: 0; }
+.row .acts .btn.gem { align-self: auto; }
+/* One size for every row action (2026-10-13, the student's screenshot: ✨ taller than ✓, tops misaligned). */
+.row .acts { align-items: center; }
+.row .acts > form, .row .acts > details, .row .acts > .btn { display: flex; margin: 0; }
+.row .acts > .btn, .row .acts > form > .btn, .row .acts > details > summary.btn,
+.trow > form > .donebtn, .trow > details > summary.donebtn, .evwrap > form > .donebtn, .evwrap > details > summary.donebtn {
+  box-sizing: border-box; width: 44px; height: 40px; min-width: 44px; min-height: 40px;
+  padding: 0; display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+.row .acts .spark { width: 20px; height: 20px; vertical-align: 0; margin: 0; }
+.trow > .btn.gem { box-sizing: border-box; width: 44px; height: 40px; min-width: 44px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+.trow > .btn.gem .spark { width: 20px; height: 20px; vertical-align: 0; margin: 0; }
+/* The ✓ menu's choices: full-width, one line each (2026-10-13 11:04 AM, the student's screenshot). */
+.done-pop .btn { width: 100%; height: auto; min-height: 44px; padding: 10px 14px; display: block;
+  text-align: left; white-space: nowrap; line-height: 1.2; }
+.done-pop { min-width: 240px; }
+/* Capture chat (2026-10-13) */
+.chat { display: flex; flex-direction: column; gap: 10px; margin: var(--space-3) 0; }
+.bub { max-width: 86%; padding: 10px 14px; border-radius: 18px; border: 1px solid var(--color-border); overflow-wrap: anywhere; }
+.bub.me { align-self: flex-end; background: var(--color-primary-light); border-color: #1e3a6e; border-bottom-right-radius: 6px; }
+.bub.nb { align-self: flex-start; background: var(--color-surface-alt); border-bottom-left-radius: 6px; }
+.bub .meta { color: var(--color-ink-muted); font-size: var(--text-xs); margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.bub .meta form.del { margin-left: auto; }
+.bub .pending { color: var(--color-warning); }
+.bub .urgent { margin-top: 8px; font-size: var(--text-sm); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.bub .urgent form { margin: 0; }
+.chatform .cchips { margin: 0 0 var(--space-2); }
+.chatform .chiprow { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.chatform .cchip span { white-space: nowrap; }
+.sendrow { display: flex; gap: var(--space-2); align-items: flex-end; }
+.sendrow textarea { flex: 1; min-height: 44px; resize: vertical; }
+.sendrow .send { flex: none; min-height: 44px; }
+.chatform .quota { margin: 6px 0 0; }

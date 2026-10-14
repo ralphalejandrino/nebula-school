@@ -2,10 +2,10 @@
 <div class="day">
   <h3 class="dayh">{{ d|dayname }}</h3>
   {% for e in evs %}
-  <a class="ev c-{{ e.color|calcolor }}{% if e.is_class %} cls{% endif %}" href="{{ e.link }}" target="_blank" rel="noopener">
+  {% if e.closable %}<div class="evwrap">{% endif %}<a class="ev c-{{ e.color|calcolor }}{% if e.is_class %} cls{% endif %}" href="{{ e.link }}" target="_blank" rel="noopener">
     <span class="tm">{% if e.all_day %}all day{% elif e.deadline_at_end %}{{ e.end|ampm }}{% else %}{{ e.start|ampm }}{% endif %}</span>
     <span class="sm">{{ e.summary|calsum }}</span>
-  </a>
+  </a>{% if e.closable %}{% include "core/_done.html" with key=e.gid choices=e.done_choices label=e.summary %}</div>{% endif %}
   {% endfor %}
 </div>
 {% empty %}<p class="muted">No events — run a sweep to load the calendar.</p>{% endfor %}

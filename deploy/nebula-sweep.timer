@@ -1,8 +1,17 @@
 [Unit]
-Description=Nebula sweep at 6:00 AM, 12:00 PM, 5:00 PM and 9:00 PM (Manila)
+# 2026-10-13 (Ralph): 8 sweeps, each ~30 min before a class block + a late one for 11 PM posts.
+# Simulated on 71 relevant messages: longest wait 8.5 h (old 6/12/5/9) → 2.9 h.
+Description=Nebula sweep at 6:00, 7:30, 10:30 AM, 1:30, 4:30, 7:00, 9:00, 11:30 PM (Manila)
 
 [Timer]
-OnCalendar=*-*-* 06,12,17,21:00:00
+OnCalendar=*-*-* 06:00:00
+OnCalendar=*-*-* 07:30:00
+OnCalendar=*-*-* 10:30:00
+OnCalendar=*-*-* 13:30:00
+OnCalendar=*-*-* 16:30:00
+OnCalendar=*-*-* 19:00:00
+OnCalendar=*-*-* 21:00:00
+OnCalendar=*-*-* 23:30:00
 Persistent=true
 RandomizedDelaySec=120
 

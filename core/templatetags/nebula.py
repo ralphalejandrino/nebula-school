@@ -123,3 +123,4 @@ def calsum(summary):
                 mark = format_html("{}{}", stico("done"), format_html('<i class="ico ico-work" aria-hidden="true"></i>'))
             return format_html("{} {}", mark, rest)
     return s
+

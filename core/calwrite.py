@@ -7,7 +7,10 @@ Conventions (owned by ~/.claude/skills/calendar/SKILL.md — mirrored, not inven
   words is reported as a duplicate, not created again.
   The description must answer the event on its own: what, where it came from, the quote.
 School writes are standing-authorised; Nebula still writes only on your tap.
-Only ever INSERTS — never updates, recolours or deletes anything it did not create.
+Only ever INSERTS — never updates, recolours or deletes anything it did not create — with ONE
+exception, also on his tap: a proposal that MOVES a date retitles the OLD open 📌 event
+"↪ MOVED → <new date>: …", graphite 8, reminders off, original description kept below (#2).
+Never deleted.
 """
 import re
 from datetime import datetime, timedelta
@@ -125,6 +128,38 @@ def find_existing(svc, p):
     return None
 
 
+def moved_summary(summary, new_date):
+    from .done import _PIN
+    return f"↪ MOVED → {new_date:%a %m-%d}: {_PIN.sub('', summary or '', count=1)}"
+
+
+def mark_moved(svc, p):
+    """Retitle the event P replaces. Sets p.moved_done; a failure is reported, never raised —
+    the new date is already on the calendar and that is the part that matters."""
+    try:
+        old = svc.events().get(calendarId="primary", eventId=p.replaces_event_id).execute()
+        s0 = old.get("summary") or ""
+        if not s0.startswith("📌"):
+            return                                   # already closed or moved by someone else
+        stamp = timezone.localtime().strftime("%a %d %b %Y, %I:%M %p").replace(" 0", " ")
+        when = f"{p.date:%a %d %b %Y}" + (f", {p.time:%I:%M %p}".replace(" 0", " ") if p.time else "")
+        desc = (f"↪ MOVED to {when}. Live event: {title_for(p)}.\n"
+                f"Quote: “{p.evidence.strip()}”\n"
+                f"Kept, not deleted. Marked by Nebula after the student approved proposal #{p.pk}, {stamp}."
+                f"\n\n--- original ---\n{old.get('description') or ''}")
+        patch = {"summary": moved_summary(s0, p.date), "colorId": "8", "description": desc,
+                 "reminders": {"useDefault": False, "overrides": []}}
+        back = svc.events().patch(calendarId="primary", eventId=p.replaces_event_id, body=patch).execute()
+        if back.get("summary") != patch["summary"]:
+            raise RuntimeError("read-back mismatch on summary")
+        from .ingest import upsert_event
+        upsert_event(back)
+        p.moved_done = True
+    except Exception as e:
+        p.error = (p.error + " · " if p.error else "") + f"old event NOT marked moved: {e}"[:300]
+    p.save()
+
+
 def write(p, svc=None, approver="you"):
     """Insert and read back. Sets p.state to written | duplicate | failed. Returns p."""
     if p.kind not in PREFIX or p.date is None:
@@ -139,6 +174,8 @@ def write(p, svc=None, approver="you"):
         p.state, p.event_id, p.event_link = "duplicate", dup["id"], dup.get("htmlLink", "")
         p.decided = timezone.now()
         p.save()
+        if p.replaces_event_id:                      # the new date was there, the old one wasn't closed
+            mark_moved(svc, p)
         return p
     start, end = _when(p)
     ev = {"summary": title_for(p), "description": body_for(p, approver), "start": start, "end": end,
@@ -152,9 +189,13 @@ def write(p, svc=None, approver="you"):
     if (back.get("start") or {}).get("date", (back.get("start") or {}).get("dateTime", ""))[:10] \
             != p.date.isoformat():
         bad.append("start")
+    from .ingest import upsert_event
+    upsert_event(back)                       # show it in Nebula now, not at the next sweep
     p.event_id, p.event_link = made["id"], made.get("htmlLink", "")
     p.decided = timezone.now()
     p.state = "failed" if bad else "written"
     p.error = f"read-back mismatch: {', '.join(bad)}" if bad else ""
     p.save()
+    if p.replaces_event_id and p.state == "written":
+        mark_moved(svc, p)
     return p

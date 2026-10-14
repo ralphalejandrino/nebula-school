@@ -78,3 +78,24 @@ def upcoming(code, now, items, pins):
             continue
         out.append((due, clean_title(e.summary.split("—", 1)[-1].split(" · via")[0].strip())))
     return sorted(out, key=lambda t: t[0])
+
+
+# #5 (2026-10-14): Gemini read a 16-day-old "QUIZ next LEC MEETING" as tomorrow's quiz. Every
+# message handed to Gemini (✨ prompt, Drive course guide) carries its age and today's date.
+OLD_AFTER_DAYS = 7
+AGE_RULE = ("Each message shows how old it is. \"Tomorrow\", \"next meeting\", \"this week\" "
+            "in a message marked ⚠ old are about THAT week and are already past — never present "
+            "them as current. Only today's date decides what is upcoming.")
+
+
+def today_line():
+    return f"Today is {timezone.localtime():%A %d %B %Y}."
+
+
+def age(dt):
+    """'today' · 'yesterday' · 'N days ago' · 'N days ago ⚠ old' (by Manila calendar day)."""
+    if not dt:
+        return "date unknown"
+    n = (timezone.localdate() - timezone.localtime(dt).date()).days
+    label = "today" if n <= 0 else "yesterday" if n == 1 else f"{n} days ago"
+    return label + (" ⚠ old" if n > OLD_AFTER_DAYS else "")

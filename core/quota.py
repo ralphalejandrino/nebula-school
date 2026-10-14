@@ -37,22 +37,25 @@ def _row(model, day):
     return row
 
 
-def available(model, now_s=None, day=None):
+def available(model, now_s=None, day=None, reserve=0):
+    """`reserve`: leave this many requests untouched for the sweeps (the chat's "Check now"
+    passes 10, so a chatty day can never push the sweep's judge off the Flash models)."""
     rpm, rpd = LIMITS[model]
     row = _row(model, day or pacific_day())
     now_s = now_s or time.time()
     recent = [t for t in row.recent if now_s - t < 60]
-    return (not row.exhausted) and row.count < rpd and len(recent) < rpm
+    return (not row.exhausted) and row.count < rpd - reserve and len(recent) < rpm
 
 
-def next_model(now_s=None, day=None, floor_only=False, skip=()):
+def next_model(now_s=None, day=None, floor_only=False, skip=(), reserve=0):
     """First model in the chain with headroom, or None (→ the sweep shows UNKNOWN).
     `skip`: models that failed transiently (503 overload) in THIS run only."""
     chain = CHAIN[-1:] if floor_only else CHAIN
     for m, _, _ in chain:
         if m in skip:
             continue
-        if available(m, now_s, day):
+        floor = m == CHAIN[-1][0]                   # Flash-Lite: 500/day, no reserve needed
+        if available(m, now_s, day, 0 if floor else reserve):
             return m
     return None
 

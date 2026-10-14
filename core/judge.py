@@ -34,6 +34,10 @@ COURSES = {
 BODY_CAP = 6000            # chars per message; long mail threads are mostly quoted history
 BATCH_CHARS = 350_000      # ≈ 90K tokens, well inside 250K TPM
 MAX_AGE_DAYS = 14
+# Google's 503 "high demand" hits every Flash model at once (59 × 503, 0 × 429 by 2026-10-14),
+# so walking the chain lands on Flash-Lite in seconds. Wait once, then walk it again (#4).
+RETRY_WAIT = 30
+_sleep = __import__("time").sleep
 
 SCHEMA = {
     "type": "OBJECT",
@@ -49,7 +53,8 @@ SCHEMA = {
             "date": {"type": "STRING"}, "time": {"type": "STRING"},
             "end_time": {"type": "STRING"}, "room": {"type": "STRING"},
             "evidence": {"type": "STRING"},
-            "label": {"type": "STRING", "enum": ["stated", "extrapolated", "unknown"]}},
+            "label": {"type": "STRING", "enum": ["stated", "extrapolated", "unknown"]},
+            "moved_from": {"type": "STRING"}},
             "required": ["source_id", "kind", "course", "title", "date", "time", "evidence",
                          "label"]}},
         "clarifications": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {
@@ -171,12 +176,21 @@ class NoModel(RuntimeError):
     """No free model answered — the caller reports UNKNOWN, never 'nothing new'."""
 
 
-def call(system, user, floor_only=False):
+def call(system, user, floor_only=False, reserve=0):
     """Walk the free chain: 429 → exhausted for today, 5xx/timeout → next model this call,
-    other errors → stop. Returns (reply, model) or raises NoModel."""
-    skip, last_err = set(), ""
+    other errors → stop. If every Flash model was overloaded, wait RETRY_WAIT once and walk the
+    chain again before settling for Flash-Lite. Returns (reply, model) or raises NoModel."""
+    skip, last_err, waited = set(), "", False
+    floor = quota.CHAIN[-1][0]
     while True:
-        model = quota.next_model(floor_only=floor_only, skip=skip)
+        model = quota.next_model(floor_only=floor_only, skip=skip, reserve=reserve)
+        if (not waited and not floor_only and skip and model in (floor, None)
+                and any(m != floor for m in skip)):
+            log.warning("every Flash model overloaded — waiting %ss before retrying", RETRY_WAIT)
+            _sleep(RETRY_WAIT)
+            waited = True
+            skip = {m for m in skip if m == floor}
+            continue
         if model is None:
             raise NoModel(f"no model answered ({last_err[:160] or 'every free model is out of quota today'})")
         try:
@@ -194,7 +208,7 @@ def call(system, user, floor_only=False):
                 raise NoModel(last_err) from None
 
 
-def run(max_age_days=MAX_AGE_DAYS, floor_only=False, include_messages=True):
+def run(max_age_days=MAX_AGE_DAYS, floor_only=False, include_messages=True, reserve=0):
     """Judge everything pending. Returns a status string for Run.gemini."""
     msgs, caps = pending_work(max_age_days, include_messages)
     if not msgs and not caps:
@@ -205,7 +219,7 @@ def run(max_age_days=MAX_AGE_DAYS, floor_only=False, include_messages=True):
             continue
         system, user, idmap = build_payload(bmsgs, bcaps)
         try:
-            reply, model = call(system, user, floor_only=floor_only)
+            reply, model = call(system, user, floor_only=floor_only, reserve=reserve)
         except NoModel as e:
             return f"UNKNOWN · {e} — {len(msgs)} message(s) NOT judged (keyword floor still shown)"
         used.append(model)
@@ -253,6 +267,10 @@ def store(reply, idmap, model):
             evidence=p.get("evidence") or "", label=p.get("label") or "unknown",
             verified=ok, verify_note=note, model=model)
         apply_class_slot(prop)
+        old = find_moved(course, prop.kind, d, prop.title, _parse_date(p.get("moved_from")))
+        if old:
+            prop.replaces_event_id, prop.replaces_summary = old.gid, old.summary[:400]
+            prop.replaces_date = timezone.localtime(old.start).date()
         prop.save()
         made += 1
     # A note must never just vanish: say what became of it (Capture tab, 2026-10-12).
@@ -304,15 +322,47 @@ def on_calendar(course, d, title):
     return None
 
 
+def find_moved(course, kind, d, title, moved_from=None):
+    """The open 📌 event this proposal MOVES, or None (#2, 2026-10-14).
+
+    Same course, a different FUTURE date, not closed, not a gradebook event (cal_sync already
+    moves those by their bb: marker). With the judge's `moved_from` the old date is known and one
+    shared word is enough; without it the title must share ≥2 words with exactly ONE event — so
+    "Lecture Exam" finds the lecture exam and not the lab exam, and "Quiz 3" never eats "Quiz 2".
+    LOCAL ONLY: the calendar is never sent to the judge (privacy rule)."""
+    from .models import CalEvent
+    if not course or d is None or kind in ("notice", "buy"):
+        return None
+    today = timezone.localdate()
+    lo = timezone.make_aware(datetime.combine(today, dtime.min))
+    tt = _tokens(title)
+    scored = []
+    for e in CalEvent.objects.filter(start__gte=lo, start__lt=lo + timedelta(days=60),
+                                     deadline_at_end=False):
+        when = timezone.localtime(e.start).date()
+        if (when == d or not e.summary.startswith("📌") or e.is_work
+                or course not in e.summary.upper() or (moved_from and when != moved_from)):
+            continue
+        scored.append((len(tt & (_tokens(e.summary) - _tokens(course))), e))
+    need = 1 if moved_from else 2
+    scored = sorted([x for x in scored if x[0] >= need], key=lambda x: -x[0])
+    if not scored or (len(scored) > 1 and scored[0][0] == scored[1][0]):
+        return None
+    return scored[0][1]
+
+
 def _duplicate(course, kind, d, title):
-    """Same course + date + ≥2 shared words with a live proposal or an Item due that day."""
+    """Same course + date + ≥2 shared words with any proposal or an Item due that day.
+
+    A REJECTED proposal counts too (B2, 2026-10-14): a "no" has to stick, or the same event
+    comes back on the next sweep — the Research Colloquium was rejected and re-proposed twice."""
     if d is None:
         return Proposal.objects.filter(course=course, kind=kind, date__isnull=True,
                                        title__iexact=title).exists()
     if on_calendar(course, d, title):
         return True
     tt = _tokens(title)
-    for p in Proposal.objects.filter(course=course, date=d).exclude(state="rejected"):
+    for p in Proposal.objects.filter(course=course, date=d):
         if len(tt & _tokens(p.title)) >= 2 or p.title.lower() == title.lower():
             return True
     lo = timezone.make_aware(datetime.combine(d, dtime.min))

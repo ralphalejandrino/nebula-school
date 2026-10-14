@@ -75,6 +75,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # Pages travel phone ↔ laptop over mobile data (~90 ms a round trip, 2026-10-12): gzip
+    # takes Today from 37 KB to a few. Private tailnet + TLS; no third party on the path.
+    "django.middleware.gzip.GZipMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",

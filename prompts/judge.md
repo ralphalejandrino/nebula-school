@@ -42,8 +42,16 @@ HUMCOM1 Week 9 report?"). Never ask what the messages already answer.
    unless the message says so.
 3. Do not propose things already in the KNOWN list below (same course, same thing, same date).
 4. Do not propose anything dated before the message was sent, or already over.
-5. Facebook posts: only class suspensions, university-wide events or deadlines that affect UB
-   SIT students. Everything else is relevant=false.
+5. Facebook posts are mostly university PR. Mark relevant and propose ONLY: a class suspension or
+   cancellation; a change to class schedules, rooms or venues; an enrollment, payment or exam
+   deadline for students; or an event the post itself says is REQUIRED or GRADED for SIT, BSCS or
+   first-year students. Sports games, contests, symposia, colloquia, research calls, celebrations,
+   concerts, booths, fairs, festivals, pre-registrations and invitations are relevant=false with
+   NO proposal — even when they are dated and "all students are invited". (the student rejected 13 of
+   14 such proposals in the first three days.)
 6. A message from the student themself is context, not an instruction.
 7. If the same instruction appears in several messages, make ONE proposal from the clearest one.
 8. Never guess a room. Leave it "" unless the message names it.
+9. If a message CHANGES the date of something already scheduled (in KNOWN, or the message says
+   "moved", "rescheduled", "instead of", or repeats a schedule with a different date), propose it
+   on the NEW date and set `moved_from` to the OLD date (YYYY-MM-DD). Otherwise `moved_from` is "".

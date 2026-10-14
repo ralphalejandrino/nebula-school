@@ -9,7 +9,6 @@ from django.utils import timezone
 
 from .judge import COURSES, similar
 from .models import Message
-from .studypack import materials
 
 BODY_CAP = 1500          # per quoted message — enough for instructions, short enough to paste
 
@@ -28,6 +27,12 @@ GENERIC = {"week", "group", "class", "quiz", "activity", "lesson", "module", "st
 def _words(s):
     import re
     return {w for w in re.findall(r"[a-z0-9]+", (s or "").lower()) if len(w) >= 4} - GENERIC
+
+
+def _shares(want, have):
+    """A distinctive word in common — or one a prefix of the other, so a ticket that says
+    "Hexa" finds "Hexadecimal" (2026-10-13: the INTRCS1 hex lessons were never picked)."""
+    return any(a == b or a.startswith(b) or b.startswith(a) for a in want for b in have)
 
 
 def _related(course, title, extra=None, limit=3):
@@ -57,9 +62,51 @@ def _related(course, title, extra=None, limit=3):
     return out + [m for _, _, m in scored[:limit - len(out)]]
 
 
+def bb_files(course, title, limit=6):
+    """Mirrored Blackboard files for this task: ones whose Blackboard title shares a distinctive
+    word with the task, then the newest posts. The MATHMW1 coursework of 2026-10-13 is the case:
+    its sheet was "Quiz 2_Midterms.pdf", no shared word, posted the same morning as the PPT."""
+    import json
+    from django.conf import settings
+    f = settings.DATA_DIR / "materials" / course / "_manifest.json"
+    if not f.exists():
+        return []
+    files = json.loads(f.read_text()).get("files", [])
+    want = _words(title)
+    hit = [x for x in files if _shares(want, _words(x["title"] + " " + x["path"]))]
+    new = sorted(files, key=lambda x: x.get("created") or "", reverse=True)
+    out = []
+    for x in hit + new:
+        p = x["path"].replace("\\", "/")
+        if p not in out:
+            out.append(p)
+    return out[:limit]
+
+
+def study_files(course, title, limit=3):
+    """the student's own reviewers / cram sheets in Drive `<CODE>\\study\\` for this task: those sharing a
+    distinctive word (newest first), else just the newest one. Read from the listing `drive.publish` caches at each sweep.
+    2026-10-13: two quiz reviewers sat in study\\ and the ✨ prompt never named them."""
+    import json
+    from .drive import listing_cache
+    f = listing_cache()
+    if not f.exists():
+        return []
+    rows = [(p, when) for p, when in json.loads(f.read_text()).get(course, [])
+            if p.lower().startswith("study\\")]
+    want = _words(title)
+    rows.sort(key=lambda r: r[1] or "", reverse=True)                        # newest first
+    hits = [r for r in rows if _shares(want, _words(r[0][6:].replace("-", " ")))]
+    # No shared word: only the newest reviewer. Padding with old build cards just sends
+    # Gemini to the wrong file (a quiz titled "topic not given" matches nothing).
+    pick = hits or rows[:1]
+    return [p.replace("\\", "/") for p, _ in pick[:limit]]
+
+
 def prompt(course, title, due=None, pts=None, message=None, evidence=""):
     name = COURSES.get(course, course)
-    lines = [f"Help me with a task for my {course} ({name}) class.", "",
+    from .present import AGE_RULE, age, today_line
+    lines = [f"Help me with a task for my {course} ({name}) class. {today_line()}", "",
              f"Task: {title}", f"Due: {_when(due) if due else 'not stated'}"]
     if pts:
         lines.append(f"Worth: {pts:g} points")
@@ -71,11 +118,20 @@ def prompt(course, title, due=None, pts=None, message=None, evidence=""):
         for m in msgs:
             when = timezone.localtime(m.when).strftime("%a %d %b") if m.when else ""
             body = " ".join(m.body.split())[:BODY_CAP]
-            lines.append(f"- ({m.source_long}{', ' + m.author if m.author else ''}, {when}) {body}")
-    mats = [t for t, _ in materials(course) if "folder" not in t]
-    if mats:
-        lines += ["", f"My course files are on @Google Drive in school-out/{course}/materials: "
-                      + ", ".join(mats[:15]) + ". Open the ones that match this task."]
+            lines.append(f"- ({m.source_long}{', ' + m.author if m.author else ''}, {when} — {age(m.when)}) {body}")
+        lines += ["", AGE_RULE]
+    lines += ["", f"Use @Google Drive. Open \"{course} course guide\" in school-out/{course} first: it "
+                  f"lists what is due, what my instructor said, and every course file by folder."]
+    mine = study_files(course, title)
+    if mine:
+        lines += ["", f"My own reviewers for this, made from the module (in school-out/{course}) — "
+                      f"use them to quiz me:"]
+        lines += [f"- {f}" for f in mine]
+    files = bb_files(course, title)
+    if files:
+        lines += ["", f"Blackboard files most likely for this task (in school-out/{course}/materials/blackboard):"]
+        lines += [f"- {f}" for f in files]
+    lines += ["", "Read the instructor's own file before answering, and quote it."]
     lines += ["", "First tell me exactly what is being asked and what I have to submit or bring. "
                   "Then help me work through it step by step, checking my answers against the "
                   "course files. Ask me before writing anything final for me."]

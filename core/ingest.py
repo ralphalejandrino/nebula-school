@@ -59,14 +59,25 @@ def _dt(v):
 # A logged-out Facebook scrape prefixes each post with volatile chrome ("UB Router",
 # "about an hour ago", "Online status indicator Active 7 hours ago", "+68"), and fb_fetch
 # hashes that text — so one post became ten rows across a day of sweeps (2026-10-11).
-_FB_CHROME = re.compile(
-    r"^(?:\s*(?:\+\d+|UB Router|Baguio City Public Information Office|Online status indicator|Active|"
+_FB_TOKEN = (
+    r"\s*(?:\+\d+|UB Router|Baguio City Public Information Office|Online status indicator|Active|"
     r"was live\.?|just now|yesterday(?: at \d{1,2}:\d{2}\s*[AP]M)?|(?:about )?(?:an?|\d+) "
-    r"(?:minute|hour|day|week)s? ago|·)\s*)+", re.I)
+    r"(?:minute|hour|day|week)s? ago|(?-i:\d{1,2}[mhdw])(?=\s)|·)\s*")   # "3m", "1h" (PIO)
+_FB_CHROME = re.compile(r"^(?:" + _FB_TOKEN + r")+", re.I)
+
+
+# A SHARED post puts the sharer's name first ("Office of Student Affairs…\n4 hours ago\n…"),
+# so the start-anchored strip above never reached the time and each sweep minted a new row
+# (12 copies by 2026-10-14). Drop a header line that is chrome and nothing else — only in the
+# first few lines, so "the deadline passed 3 days ago" inside a post stays.
+_FB_CHROME_LINE = re.compile(r"(?:" + _FB_TOKEN + r")+", re.I)
+_FB_HEADER_LINES = 4
 
 
 def fb_clean(text):
-    return _FB_CHROME.sub("", text or "").strip()
+    lines = _FB_CHROME.sub("", text or "").strip().split("\n")
+    head = [ln for ln in lines[:_FB_HEADER_LINES] if not _FB_CHROME_LINE.fullmatch(ln.strip())]
+    return "\n".join(head + lines[_FB_HEADER_LINES:]).strip()
 
 
 def fb_uid(page, text):
@@ -169,6 +180,32 @@ def import_personal_mail(limit=40):
     return n
 
 
+def upsert_event(e):
+    """One Google event → the local snapshot. Called by the sweep AND right after any write
+    Nebula makes (✓, Add, a move), so the agenda never waits for the next sweep: on
+    2026-10-13 two quizzes written at 6:05 PM were missing from "Tomorrow" until 9:00 PM."""
+    if not e.get("id"):
+        return False
+    if e.get("status") == "cancelled":
+        CalEvent.objects.filter(gid=e["id"]).delete()
+        return False
+    s, en = e.get("start", {}), e.get("end", {})
+    all_day = "date" in s
+    start = _dt(s.get("dateTime") or s.get("date"))
+    end = _dt(en.get("dateTime") or en.get("date")) or start
+    if start is None:                        # a partial echo (tests, odd API replies): leave the row
+        return False
+    CalEvent.objects.update_or_create(gid=e["id"], defaults={
+        "summary": (e.get("summary") or "(no title)")[:400], "start": start, "end": end,
+        "all_day": all_day, "color": e.get("colorId") or "",
+        "link": (e.get("htmlLink") or "")[:600], "location": (e.get("location") or "")[:300],
+        # cal_sync's shape is exactly one hour ending ON the deadline; a hand-moved one
+        # (the BIOS lab on its 2:00–5:00 PM block) keeps its marker but not that shape.
+        "deadline_at_end": (e.get("description") or "").lstrip().startswith("bb:")
+                           and not all_day and (end - start) == timedelta(hours=1)})
+    return True
+
+
 def import_calendar(days=45):
     """Snapshot primary calendar (yesterday → +days). Local only: the agenda shows 14 days,
     the judge's duplicate check needs the exam weeks further out."""
@@ -189,21 +226,8 @@ def import_calendar(days=45):
             break
     keep = set()
     for e in evs:
-        if e.get("status") == "cancelled":
-            continue
-        s, en = e.get("start", {}), e.get("end", {})
-        all_day = "date" in s
-        start = _dt(s.get("dateTime") or s.get("date"))
-        end = _dt(en.get("dateTime") or en.get("date")) or start
-        CalEvent.objects.update_or_create(gid=e["id"], defaults={
-            "summary": (e.get("summary") or "(no title)")[:400], "start": start, "end": end,
-            "all_day": all_day, "color": e.get("colorId") or "",
-            "link": (e.get("htmlLink") or "")[:600], "location": (e.get("location") or "")[:300],
-            # cal_sync's shape is exactly one hour ending ON the deadline; a hand-moved one
-            # (the BIOS lab on its 2:00–5:00 PM block) keeps its marker but not that shape.
-            "deadline_at_end": (e.get("description") or "").lstrip().startswith("bb:")
-                               and not all_day and (end - start) == timedelta(hours=1)})
-        keep.add(e["id"])
+        if upsert_event(e):
+            keep.add(e["id"])
     CalEvent.objects.filter(start__gte=lo, start__lte=hi).exclude(gid__in=keep).delete()
     CalEvent.objects.filter(end__lt=lo).delete()
     return len(keep)
@@ -264,6 +288,7 @@ def sweep(trigger="cli", judge_after=True, apply_calendar=True):
         step("ledger", lambda: f"{import_ledger()} items")
         step("personal_mail", lambda: f"{import_personal_mail()} threads (🔒 never sent to AI)")
         step("calendar_read", lambda: f"{import_calendar()} events")
+
         if judge_after:
             from . import judge
             try:
@@ -276,6 +301,20 @@ def sweep(trigger="cli", judge_after=True, apply_calendar=True):
             except Exception as e:
                 run.gemini = f"UNKNOWN · {type(e).__name__}: {str(e)[:200]}"
                 log.error("judge failed\n%s", traceback.format_exc())
+        # LAST, after the judge: on 2026-10-13 a stuck mirror ran the 6 AM sweep into its
+        # 30-min systemd limit and the judge never ran. Drive context can wait; alerts can't.
+        def _drive():
+            # Blackboard → Drive, so the Gemini app can read the whole course (2026-10-12).
+            # A mirror that half-failed still publishes what it got, and says so.
+            code, out, err = _lms("mirror", timeout=900)
+            tail = (out.strip().splitlines() or [""])[-1]
+            if code == 2:
+                raise RuntimeError(f"mirror: session dead — {(err or out).strip()[-160:]}")
+            from . import drive
+            pub = drive.publish()
+            return (f"{tail} · {pub}" if code == 0 else f"🟠 mirror exit {code}: {tail} · {pub}")
+        if not settings.DEMO:
+            step("drive", _drive)
     finally:
         run.finished = timezone.now()
         run.save()
@@ -287,6 +326,19 @@ def sweep(trigger="cli", judge_after=True, apply_calendar=True):
         fcntl.flock(fh, fcntl.LOCK_UN)
         fh.close()
     return run
+
+
+# systemd stops a sweep at TimeoutStartSec=1800 with SIGTERM, which skips the `finally` above —
+# so a killed run keeps finished=NULL forever. Older than the limit (plus slack) = dead.
+DEAD_AFTER = timedelta(minutes=35)
+
+
+def dead_runs(hours=24):
+    """Sweeps that started but never finished in the last `hours` — shown on every page."""
+    from .models import Run
+    now = timezone.now()
+    return list(Run.objects.filter(finished__isnull=True, started__lt=now - DEAD_AFTER,
+                                   started__gte=now - timedelta(hours=hours)))
 
 
 def is_running():

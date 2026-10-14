@@ -15,8 +15,8 @@ from django.views.decorators.http import require_POST
 
 from . import ingest, quota
 from .judge import COURSES
-from .models import CalEvent, Capture, Clarification, Item, Message, Proposal, Run
-from . import tutor
+from .models import CalEvent, Capture, ChatTurn, Clarification, DoneMark, Item, Message, Proposal, Run
+from . import done as donemod, tutor
 from .present import clean_title, settled, upcoming
 from .studypack import materials, tutor_prompt
 
@@ -45,7 +45,8 @@ def nav_context(request):
             "nav_pending": Proposal.objects.filter(state="pending").count(),
             "nav_questions": Clarification.objects.filter(answered__isnull=True).count(),
             "nav_running": ingest.is_running(),
-            "nav_last": Run.objects.filter(finished__isnull=False).first()}
+            "nav_last": Run.objects.filter(finished__isnull=False).first(),
+            "nav_dead": ingest.dead_runs()}
 
 
 # ---------------------------------------------------------------- helpers
@@ -135,10 +136,13 @@ def today(request):
     # (held_by_you) and twins are excluded, and only the last 7 days count — older misses
     # are history, still listed on the course page.
     done_by_you = settled(run)
+    marked = donemod.done_keys()             # ✓ tapped in Nebula (2026-10-12)
+    due_today = [i for i in due_today if i.uid not in marked]
     overdue = [i for i in Item.objects.filter(submitted=False, due__lt=now,
                                               due__gte=now - timedelta(days=7)).order_by("-due")
-               if (i.course, i.title) not in done_by_you]
-    tomorrow_items = list(Item.objects.filter(submitted=False, due__gte=hi, due__lt=hi + timedelta(days=1)))
+               if (i.course, i.title) not in done_by_you and i.uid not in marked]
+    tomorrow_items = [i for i in Item.objects.filter(submitted=False, due__gte=hi, due__lt=hi + timedelta(days=1))
+                      if i.uid not in marked]
     tasks = []
     from .judge import similar
 
@@ -147,7 +151,7 @@ def today(request):
         gradebook column live only there. Skips ones already listed from the gradebook."""
         out_ = []
         for e in CalEvent.objects.filter(start__gte=lo_, start__lt=hi_).order_by("start"):
-            if not e.summary.startswith("📌") or e.is_work:
+            if not e.summary.startswith("📌") or e.is_work or e.gid in marked:
                 continue
             code = next((c for c in COURSES if c in e.summary), "")
             if any(i.course == code and similar(code, i.title, e.summary) for i in items):
@@ -163,19 +167,27 @@ def today(request):
         return e.end if e.deadline_at_end else e.start
     for i in overdue:
         tasks.append({"pri": "overdue", "text": f"{i.course} {clean_title(i.title)}", "due": i.due, "tag": "overdue",
-                      "prompt": tutor.for_item(i)})
+                      "prompt": tutor.for_item(i), "key": i.uid, "choices": donemod.choices()})
     for i in due_today:
         tasks.append({"pri": "due", "text": f"{i.course} {clean_title(i.title)}", "due": i.due, "tag": "today",
-                      "prompt": tutor.for_item(i)})
+                      "prompt": tutor.for_item(i), "key": i.uid, "choices": donemod.choices()})
     for e in _cal_pins(lo, hi, overdue + due_today):
         code = next((c for c in COURSES if c in e.summary), "")
         title = e.summary.split("—", 1)[-1].split(" · via")[0].strip()
         tasks.append({"pri": "due", "text": _label(e), "due": _due(e), "tag": "today",
-                      "prompt": tutor.prompt(code, title, due=e.start) if code else ""})
+                      "prompt": tutor.prompt(code, title, due=e.start) if code else "",
+                      "key": e.gid, "choices": donemod.choices(e.summary)})
     # Tomorrow: every 📌 on the calendar, plus gradebook items not already among them.
     pins_tmr = _cal_pins(hi, hi + timedelta(days=1), [])
-    tomorrow = [{"text": _label(e), "due": _due(e)} for e in pins_tmr] + [
-        {"text": f"{i.course} — {clean_title(i.title)}", "due": i.due} for i in tomorrow_items
+    # ✨ on tomorrow's rows too (2026-10-13, the student: the night before a quiz is when it's used).
+    def _pin_prompt(e):
+        code = next((c for c in COURSES if c in e.summary), "")
+        return tutor.prompt(code, e.summary.split("—", 1)[-1].split(" · via")[0].strip(),
+                            due=e.start) if code else ""
+    tomorrow = [{"text": _label(e), "due": _due(e), "key": e.gid, "choices": donemod.choices(e.summary),
+                 "prompt": _pin_prompt(e)} for e in pins_tmr] + [
+        {"text": f"{i.course} — {clean_title(i.title)}", "due": i.due, "key": i.uid,
+         "choices": donemod.choices(), "prompt": tutor.for_item(i)} for i in tomorrow_items
         if not any(similar(i.course, i.title, e.summary) for e in pins_tmr)]
     tomorrow.sort(key=lambda t: t["due"])
     tasks.sort(key=lambda t: (t["tag"] != "overdue", t["due"]))
@@ -200,6 +212,7 @@ def today(request):
         "personal_unread": personal_unread,
         "agenda": _group_by_day(agenda), "clashes": collisions(list(agenda)),
         "quota": quota.summary(), "icons": SOURCE_ICON,
+        "recently_done": DoneMark.objects.filter(created__gte=now - timedelta(hours=24)),
     }
     return render(request, "core/today.html", ctx)
 
@@ -291,10 +304,14 @@ def course(request, code):
         raise Http404
     now = timezone.now()
     done_by_you = settled(Run.objects.filter(finished__isnull=False).first())
+    marks = {d.key: d for d in DoneMark.objects.filter(course=code)}
     items = []
     for i in Item.objects.filter(course=code).filter(due__gte=now - timedelta(days=14)):
         # Work you marked done on the calendar is done here too — Today already said so.
-        i.done = i.submitted or (i.course, i.title) in done_by_you
+        mark = marks.get(i.uid)
+        i.done = i.submitted or (i.course, i.title) in done_by_you or mark is not None
+        i.done_word = mark.word if mark else ""
+        i.choices = donemod.choices()
         items.append(i)
     items.sort(key=lambda i: (i.done, i.due < now, i.due if i.due >= now else now - (i.due - now)))
     # Messages the judge or the keyword floor flagged first; classmates' chatter folds away.
@@ -347,29 +364,56 @@ def class_now(now=None):
 
 @login_required
 def capture(request):
+    """The Capture chat (2026-10-13). the student's line → a Capture the next sweep judges; Nebula
+    answers at once on Flash-Lite (core/chat.py). Nothing is judged here unless he taps Check now."""
+    from . import chat
     if request.method == "POST":
         text = request.POST.get("text", "").strip()
         course = request.POST.get("course", "")
-        if text:
-            Capture.objects.create(text=text, course=course if course in COURSES else "")
-            if not ingest.is_running():
-                _bg("judge", "--captures-only")
-            flash.success(request, "Saved. Gemini is reading it — any dates show up below and in "
-                                   "To approve on Today.")
-        else:
-            flash.error(request, "Nothing to save — type what was said first.")
+        course = course if course in COURSES else ""
+        if not text:
+            flash.error(request, "Type something first.")
+            return redirect("capture")
+        c = Capture.objects.create(text=text, course=course)
+        ChatTurn.objects.create(role="me", text=text, capture=c)
+        if not settings.DEMO:
+            chat.reply(text, course)
         return redirect("capture")
-    notes = Capture.objects.filter(kind="note").prefetch_related("proposal_set")[:30]
-    answers = Capture.objects.filter(kind="answer")[:20]
+    turns = list(ChatTurn.objects.select_related("capture").order_by("-created")[:40])[::-1]
+    caps = {t.capture_id for t in turns if t.capture_id}
+    props = {}
+    for p in Proposal.objects.filter(capture_id__in=caps):
+        props.setdefault(p.capture_id, []).append(p)
+    for t in turns:
+        t.props = props.get(t.capture_id, [])
+    lite = quota.summary()[-1]
     return render(request, "core/capture.html", {
-        "notes": notes, "answers": answers, "courses": list(COURSES), "guess": class_now(),
-        "waiting": Capture.objects.filter(judged_at__isnull=True).count()})
+        "turns": turns, "courses": list(COURSES), "guess": class_now(),
+        "sweep": chat.next_sweep(), "lite": lite,
+        "answers": Capture.objects.filter(kind="answer")[:20],
+        "waiting": Capture.objects.filter(kind="note", judged_at__isnull=True).count()})
+
+
+@login_required
+@require_POST
+def chat_check(request, pk):
+    """Check now: judge the waiting notes immediately, leaving 10 requests per Flash model for
+    the sweeps. Only offered when Flash-Lite flagged a deadline before the next sweep."""
+    t = get_object_or_404(ChatTurn, pk=pk, role="nebula")
+    if ingest.is_running():
+        flash.info(request, "A sweep is running right now — it will check your note in a few minutes.")
+    elif _bg("judge", "--captures-only", "--reserve", "10"):
+        t.checked_now = True
+        t.save(update_fields=["checked_now"])
+        flash.success(request, "Checking now — anything dated will show here and in To approve.")
+    return redirect("capture")
 
 
 @login_required
 @require_POST
 def capture_delete(request, pk):
     c = get_object_or_404(Capture, pk=pk)
+    ChatTurn.objects.filter(capture=c).delete()      # the chat line goes with the note
     c.delete()                      # its proposals stay (FK SET_NULL); the calendar is untouched
     flash.info(request, "Note deleted.")
     return redirect("capture")
@@ -396,6 +440,10 @@ def proposal_decide(request, pk, verdict):
             calwrite.write(p)
             msg = {"written": "On your calendar", "duplicate": "Already on your calendar — not duplicated",
                    "failed": f"Write failed: {p.error}"}[p.state]
+            if p.moved_done:
+                msg += f" · old {p.replaces_date:%a %m-%d} event marked ↪ MOVED"
+            elif p.replaces_event_id and "NOT marked moved" in p.error:
+                msg += f" · ⚠ {p.error}"
             (flash.success if p.state != "failed" else flash.error)(request, f"{msg}: {p.title}")
         except Exception as e:
             p.state, p.error = "failed", f"{type(e).__name__}: {e}"[:400]
@@ -453,7 +501,7 @@ def status(request):
 # ---------------------------------------------------------------- PWA
 def manifest(request):
     data = {"id": "/", "name": "Nebula", "short_name": "Nebula", "start_url": "/", "scope": "/",
-            "display": "standalone", "background_color": "#0b1020", "theme_color": "#1d4ed8",
+            "display": "standalone", "background_color": "#000000", "theme_color": "#000000",
             "description": "School, in one place.",
             "icons": [{"src": static("core/icon-192.png"), "sizes": "192x192", "type": "image/png",
                        "purpose": "any maskable"},
@@ -474,3 +522,31 @@ def service_worker(request):
     js = (settings.BASE_DIR / "core" / "static" / "core" / "sw.js").read_text()
     return HttpResponse(js, content_type="application/javascript",
                         headers={"Service-Worker-Allowed": "/", "Cache-Control": "no-cache"})
+
+
+@login_required
+@require_POST
+def mark_done(request):
+    """✓ — the student says it's done: close the calendar event (calendar skill contract), remember it."""
+    key, word = request.POST.get("key", ""), request.POST.get("word", "DONE")
+    nxt = request.POST.get("next") or "today"
+    if not key:
+        raise Http404
+    try:
+        dm, msg = donemod.mark(key, word)
+        flash.success(request, f"{msg}: {clean_title(dm.title)}")
+    except Exception as e:
+        flash.error(request, f"Not marked — the calendar write failed ({type(e).__name__}: {e})"[:300])
+    return redirect(nxt)
+
+
+@login_required
+@require_POST
+def undo_done(request, pk):
+    dm = get_object_or_404(DoneMark, pk=pk)
+    try:
+        donemod.undo(dm)
+        flash.info(request, f"Undone — back on the calendar as it was: {clean_title(dm.title)}")
+    except Exception as e:
+        flash.error(request, f"Undo failed ({type(e).__name__}: {e})"[:300])
+    return redirect(request.POST.get("next") or "today")
